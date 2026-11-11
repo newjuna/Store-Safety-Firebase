@@ -6,7 +6,7 @@
  * - 아직 옮기지 않은 기능은 '아직 Firebase로 옮기지 않은 기능' 안내
  */
 (function () {
-  const VERSION = '26.10.19 S1';
+  const VERSION = '26.10.19 S2';
   /* ---------- 기존 Code.gs와 같은 기준값 ---------- */
   /* F2.1 업종 '오픈지원' 추가 (매장 오픈 인력 · 인력사무소형) · 인테리어(마감) = 지금까지의 공사 흐름 그대로 */
   const CFG = {
@@ -713,6 +713,51 @@
     await ref.delete(); if (m.gmail) await db.collection('STAFF').doc(m.gmail).delete().catch(() => {});
     audit(a, '', 'MEMBER_DELETE', m.name + ' ' + (m.gmail || ''));
     return API.orgGet(a);
+  };
+  /* ---------- S2 매장 목록 · 부서 관리 (본사) ----------
+   *  STORES/list  = { json: '[[코드, 매장명, 팀(지역), 형태, 목록에 없음(0|1), 빠진 날]]', count, at, by }  · 문서 1개 = 읽기 1번
+   *  STORES/depts = { depts: [{id, name}], teams: [[팀, 부서id]], at, by }  · 부서 ↔ 팀은 해마다 바뀜
+   *  보기 = 직원 · 고치기 = 안전보건팀 · 마스터 (firestore.rules STORES 와 같게) */
+  const STORE_TYPES = ['직영점', '유통점', '유통행사'];
+  const storeGate = async (a) => { if (!(await isSafety(a))) fail('안전보건팀 · 마스터 계정만 고칠 수 있습니다.'); };
+  async function storeDoc(id) { const d = await db.collection('STORES').doc(id).get(); return d.exists ? d.data() : null; }
+  const storeRows = (d) => { const L = parse(d && d.json, []); return Array.isArray(L) ? L.filter((r) => Array.isArray(r) && r[0]) : []; };
+  API.storeBoard = async (a) => {
+    await staffOnly(a);
+    const [L, D] = await Promise.all([storeDoc('list'), storeDoc('depts')]);
+    return { stores: storeRows(L), at: (L && L.at) || '', by: (L && L.by) || '', depts: (D && Array.isArray(D.depts) ? D.depts : []), teams: (D && Array.isArray(D.teams) ? D.teams : []).map((x) => [String((x && x.t) || ''), String((x && x.d) || '')]), deptAt: (D && D.at) || '', canEdit: await isSafety(a) };  // teams: Firestore는 배열 안 배열을 못 담아서 {t, d}로 저장
+  };
+  /** 붙여넣기 반영: rows = [[코드, 매장명, 팀, 형태]] (대상 매장만) · 코드 기준 덮어쓰기 · 빠진 매장 = 목록에 없음 (다시 나오면 되살림) */
+  API.storeSave = async (a, rows) => {
+    await storeGate(a);
+    const seen = new Set(), L = [];
+    (Array.isArray(rows) ? rows : []).slice(0, 5000).forEach((r) => {
+      const c = tidy(r && r[0], 12).replace(/\s/g, ''), n = tidy(r && r[1], 60), t = tidy(r && r[2], 40), k = tidy(r && r[3], 20).replace(/\s/g, '');
+      if (!/^\d{1,12}$/.test(c) || !n || !STORE_TYPES.includes(k) || seen.has(c)) return; seen.add(c); L.push([c, n, t, k, 0, '']);
+    });
+    if (!L.length) fail('저장할 매장이 없습니다.');
+    const old = storeRows(await storeDoc('list')), day = today(); let gone = 0, back = 0;
+    old.forEach((o) => { const c = String(o[0]); if (seen.has(c)) { if (o[4]) back++; return; } L.push([c, String(o[1] || ''), String(o[2] || ''), String(o[3] || ''), 1, o[4] ? (o[5] || day) : day]); if (!o[4]) gone++; });
+    L.sort((x, y) => (x[4] - y[4]) || String(x[2]).localeCompare(String(y[2]), 'ko', { numeric: true }) || String(x[1]).localeCompare(String(y[1]), 'ko'));
+    const json = JSON.stringify(L); if (json.length > 900000) fail('매장 목록이 너무 큽니다. (문서 1개 한도)');
+    await db.collection('STORES').doc('list').set({ json, count: seen.size, at: now(), by: a.email });
+    audit(a, '', 'STORE_SAVE', seen.size + '곳 · 빠짐 ' + gone + ' · 되살림 ' + back);
+    return API.storeBoard(a);
+  };
+  /** 부서 저장: depts = [{id, name}] · teams = [[팀, 부서id]] */
+  API.deptSave = async (a, depts, teams) => {
+    await storeGate(a);
+    const D = [], ids = new Set(), names = new Set();
+    (Array.isArray(depts) ? depts : []).slice(0, 100).forEach((d) => {
+      const id = /^D-[A-Za-z0-9]{1,12}$/.test(String((d && d.id) || '')) ? d.id : 'D-' + rand8(), name = tidy(d && d.name, 40);
+      if (!name) fail('이름이 빈 부서가 있습니다.'); if (names.has(name)) fail('같은 부서 이름이 있습니다: ' + name); if (ids.has(id)) return;
+      ids.add(id); names.add(name); D.push({ id, name });
+    });
+    const T = [], tseen = new Set();
+    (Array.isArray(teams) ? teams : []).slice(0, 2000).forEach((x) => { const t = tidy(x && x[0], 40), id = String((x && x[1]) || ''); if (t && ids.has(id) && !tseen.has(t)) { tseen.add(t); T.push({ t, d: id }); } });
+    await db.collection('STORES').doc('depts').set({ depts: D, teams: T, at: now(), by: a.email });
+    audit(a, '', 'DEPT_SAVE', D.length + '개 부서 · ' + T.length + '개 팀');
+    return API.storeBoard(a);
   };
   /** 위임장 · 현장대리인계 보기 (중계 서버가 양식을 만들어 줌) */
   API.jobPaper = async (a, jobId, kind, companyId) => relay('jobPaper', { jobId: tidy(jobId, 40), kind: tidy(kind, 10), companyId: tidy(companyId, 40) }, true);
