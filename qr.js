@@ -37,7 +37,7 @@ function stopScan(){clearInterval(qrTimer);qrTimer=null;if(qrStream){qrStream.ge
 function qrTokenOf(text,pre){const s=String(text||'').trim();let r='';try{r=new URL(s,location.href).searchParams.get('review')||''}catch(e){}if(!r)r=s;const m=new RegExp('^'+pre+'-([a-f0-9]{32})$','i').exec(r);return m?m[1].toLowerCase():''}
 function meetTokenOf(text){return qrTokenOf(text,'MEET')}
 /** F2.7 비상훈련 참석 QR → 앱 안에서 바로 참석 (sopen.js renderDrillIn) */
-function qrDrill(t){stopScan();window.__drlTok=t;$('pageTitle').textContent='비상훈련 참석';renderDrillIn()}
+function qrDrill(t){stopScan();msg('지원하지 않는 QR입니다.')}
 function qrFound(text){
  if(qrMode==='drill'){const d=qrTokenOf(text,'DRL');if(!d){$('qrMsg').textContent='비상훈련 참석 QR이 아닙니다. 도급인이 보여 주는 훈련 QR을 비춰 주세요.';return}if(navigator.vibrate)navigator.vibrate(80);qrDrill(d);return}
  const t=meetTokenOf(text);if(!t){$('qrMsg').textContent='협의체·합동점검 참석 QR이 아닙니다. 현장의 참석 QR을 비춰 주세요.';return}
