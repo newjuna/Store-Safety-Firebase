@@ -1,0 +1,215 @@
+/* 업체 화면 (v5.3) — 승인된 협력업체
+ *  첫 화면 = 대시보드 (공사 일정 막대 · 이행률 원그래프 · 오늘 할 일)
+ *  ☰ 메뉴 = 업무별: 대시보드 / 작업자 등록·오늘 인원 / 작업허가서 발행 / 순회점검 / 비상대피훈련 등록(준비 중) / 계약 서류
+ *  공사가 여러 개면 각 메뉴 맨 위에서 공사를 고름 (1개면 자동)
+ *  서버: Code.gs myJobs(stats·end) · vendorJob */
+let vmenu='dash',vSel='';
+/* F1.8f 비상대피훈련 메뉴 없앰 (훈련·교육 사진은 순회점검 안에서 올림) */
+const VMENU={dash:'대시보드',today:'오늘 현장 업무',edu:'신규교육 현황',meet:'협의체 및 합동점검 참여',docs:'계약 서류',mgr:'인력관리자(현장대리인) 관리',half:'반기 평가 결과',roster:'인력 명부'};  // F2.2 mgr · F2.7 roster · half = 오픈지원 업체만
+/* F2.7 오픈지원 업체 메뉴: 협의체 참여 · 신규교육 현황 메뉴 없음 (매장 상세에서 근로자 명단) · 인력 명부 · 반기 평가 결과 · '오늘 현장 업무' → '오픈 매장' */
+const VOPEN_HIDE=['vm_edu','vm_meet'],VOPEN_ONLY=['vm_roster','vm_half'];
+/* F1.8a 작업자 등록·작업허가서·순회점검은 '오늘 현장 업무' 한 화면으로 합침 · 예전 이름으로 부르면 그 칸으로 바로 이동 */
+const VJUMP={workers:'regCard',permit:'permitCard',insp:'inspCard'};
+/* v5.17 재평가 중(이전 승인 있음)이어도 수행 메뉴는 그대로 사용 */
+const isVendorApproved=()=>!!(state&&!state.staff&&state.company&&state.company.status==='VERIFIED'&&(state.company.submissionStatus==='APPROVED'||!!state.company.renewAt));
+/** 메뉴 버튼 보이기 (display 때마다) */
+/* v5.17 진행 중인 공사가 없으면(모두 종료 · 배정 전) 공사 업무 메뉴는 숨기고 대시보드·계약 서류만 */
+const VJOB_MENUS=['today','edu','meet'];
+const vOpenJobs=()=>vjobs&&vjobs.jobs?vjobs.jobs.filter(j=>j.status!=='ENDED').length:(state&&state.openJobs!=null?state.openJobs:1);
+function setupVMenu(){const ap=isVendorApproved(),open=ap&&vOpenJobs()>0,isJob=el=>!!el&&VJOB_MENUS.includes(String(el.id).replace('vm_',''));
+ /* v5.20 메뉴 묶음(navg)은 안에 공사 업무 메뉴가 있으면 공사 업무로 봄 */
+ document.querySelectorAll('.vmb').forEach(b=>{const job=b.classList.contains('navg')?[...b.querySelectorAll('button[id]')].some(isJob):isJob(b);b.classList.toggle('hidden',!ap||(job&&!open))});
+ /* F2.2 인력관리자 관리 = 오픈지원 업체만 · 진행 중 오픈 매장이 없어도 보임 (미리 등록) · 묶음이 숨겨졌으면 꺼내 보이게 */
+ const mb=$('vm_mgr');if(mb){const on=ap&&isOpenVendor();mb.classList.toggle('hidden',!on);const g=mb.closest('.navg');if(g&&on)g.classList.remove('hidden')}
+ if(vmenu==='mgr'&&!(ap&&isOpenVendor()))vmenu='dash';
+ /* F2.7 오픈지원 메뉴 */
+ const op=ap&&isOpenVendor();VMENU.today=op?'오픈 매장':'오늘 현장 업무';VMENU.edu=op?'근로자 명단 · 교육일지':'신규교육 현황';const tb=$('vm_today');if(tb)tb.textContent=op?'🏪 오픈 매장':'📋 오늘 현장 업무';
+ VOPEN_HIDE.forEach(id=>{const b=$(id);if(b&&op)b.classList.add('hidden')});VOPEN_ONLY.forEach(id=>{const b=$(id);if(b){b.classList.toggle('hidden',!op);const g=b.closest('.navg');if(g&&op)g.classList.remove('hidden')}});
+ if(op&&['edu','meet'].includes(vmenu)&&!vjob)vmenu='dash';if(!op&&['roster','half'].includes(vmenu))vmenu='dash';
+ if(ap&&!open&&VJOB_MENUS.includes(vmenu)&&!vjob)vmenu='dash';  // 종료 공사 기록을 보고 있을 때는 그대로
+ $('myTab').classList.toggle('hidden',ap);if(!state.staff&&state.company)$('myTab').textContent=ap?'내 업무':'계약 전 서류';if(ap)markVMenu()}
+function markVMenu(){document.querySelectorAll('.vmb').forEach(b=>b.classList.toggle('active',b.id==='vm_'+vmenu));if(tab==='my'&&isVendorApproved())$('pageTitle').textContent=VMENU[vmenu]}
+/** 메뉴 이동 */
+function vgo(m,id){if(typeof setTopGuide==='function')setTopGuide('');if(VJUMP[m]){window.__vjump=VJUMP[m];m='today'}if(!id&&VJOB_MENUS.includes(m)&&vOpenJobs()<1)m='dash';/* 진행 중 공사 없음 → 대시보드 (종료 공사 기록 보기는 id로 열림) */vmenu=m;if(id)vSel=id;toggleMenu(false);stopScan();MEET_TOKEN='';if(tab!=='my')switchTab('my');markVMenu();clearInterval(wkTimer);showQr=false;showAdd=false;window.scrollTo(0,0);
+ if(!$('execArea')){renderMy();return}  // 참석 체크 화면 뒤에는 업체 화면을 다시 그림
+ if(m==='meet'){renderVMeet();return}
+ if(m==='dash'){vjob=null;loadMyJobs(true);return}/* v5.20 가지고 있는 목록으로 바로 그리고, 20초 지났을 때만 뒤에서 새로 받음 */if(m==='docs'){renderVDocs();return}
+ if(m==='mgr'){vjob=null;if(typeof renderVMgr==='function')renderVMgr();return}/* F2.2 인력관리자 관리 */
+ if(m==='roster'){vjob=null;if(typeof renderVRoster==='function')renderVRoster();return}/* F2.7 인력 명부 */
+ if(m==='half'){if(typeof vHalfOpen==='function')vHalfOpen();return}/* F2.7 반기 평가 결과 (메뉴) */vEnsureJob()}
+/** 승인 후 화면 시작 (renderMy에서 호출) */
+function vStart(){markVMenu();if(vmenu==='roster'&&typeof renderVRoster==='function'){vjob=null;return renderVRoster()}if(vmenu==='meet')return renderVMeet();if(vmenu==='docs')return renderVDocs();if(vmenu==='mgr'&&typeof renderVMgr==='function'){vjob=null;return renderVMgr()}if(vmenu==='half'&&typeof vHalfOpen==='function')return vHalfOpen();if(vmenu==='drill')vmenu='dash';if(vmenu!=='dash'&&vjob)return renderVJob();loadMyJobs(true)/* v5.18 20초 안에 받은 목록이면 다시 받지 않음 */}
+async function vEnsureJob(){const el=$('execArea');if(!el)return;
+ if(!vjobs){el.innerHTML='<div class="card"><p class="desc">공사를 불러오는 중입니다…</p></div>';try{vjobs=await callQuiet('myJobs')}catch(e){el.innerHTML='<div class="card"><p class="desc">'+escapeText(e.message||'공사를 불러오지 못했습니다.')+'</p></div>';return}}
+ const jobs=vjobs.jobs;if(!jobs.length){el.innerHTML='<div class="card"><h2>'+escapeText(VMENU[vmenu])+'</h2><div class="note">아직 배정된 공사가 없습니다.<br>도급인 담당자가 공사에 업체를 배정하면 여기에서 진행할 수 있습니다.</div></div>';return}
+ if(!vSel||!jobs.some(j=>j.id===vSel))vSel=(jobs.find(j=>j.status!=='ENDED')||jobs[0]).id;
+ if(vjob&&vjob.job.id===vSel){renderVJob();return}await openVJob(vSel)}
+function pickJob(id){vSel=id;showQr=false;showAdd=false;openVJob(id)}
+/** 업무 화면 머리: 메뉴 이름 + 공사 선택 */
+function vJobHead(v){const jobs=(vjobs&&vjobs.jobs)||[];if(!['today','edu'].includes(vmenu)){vmenu='today';markVMenu()}
+ return '<div class="card vjhead"><div class="vh-top"><h2 style="margin:0">'+escapeText(VMENU[vmenu]||'')+'</h2>'+(vmenu==='today'&&v.jobStatus!=='ENDED'&&!v.open?'<button class="button ghost" type="button" id="gdDay" style="padding:4px 8px;font-size:12px" onclick="dayGuide(true)">▶ 전체 사용 가이드</button>':'')+'</div>'
+  +(jobs.length>1?'<label class="muted" for="vjSel" style="display:block;margin-top:10px">공사 선택</label><select id="vjSel" class="vjsel" onchange="pickJob(this.value)">'+jobs.map(j=>'<option value="'+escapeText(j.id)+'" '+(j.id===v.job.id?'selected':'')+'>'+escapeText(j.title)+' ('+escapeText(j.storeName)+')'+(j.status==='ENDED'?' · 종료':'')+'</option>').join('')+'</select>':'')
+  +'<div class="muted" style="margin-top:6px">'+(jobs.length>1?'':escapeText(v.job.title)+' · ')+escapeText(v.job.storeName)+' · '+escapeText(v.company.trade)+' · 도급인 '+escapeText(v.job.hostName)+'</div></div>'}
+/* ---------- 대시보드 ---------- */
+const dayDiff=(a,b)=>Math.round((new Date(b+'T00:00:00Z')-new Date(a+'T00:00:00Z'))/86400000);
+function ganttRow(j,t,staff){const s=j.startDate,e=j.endDate||j.startDate,ok=/^\d{4}-\d{2}-\d{2}$/;if(!ok.test(s))return '';
+ const total=Math.max(1,dayDiff(s,e)+1),ended=j.status==='ENDED',d=dayDiff(s,t)+1,pct=ended?100:Math.max(0,Math.min(100,Math.round(d/total*100)));
+ const left=dayDiff(t,e),lab=ended?'공사 종료':d<1?'착수 '+(1-d)+'일 전':left<0?'종료일 '+(-left)+'일 경과':d+'일째 / 총 '+total+'일 · '+(left?'종료 '+left+'일 전':'오늘 종료');
+ const warn=!ended&&(left<0||left<=3&&d>=1);
+ return '<div class="gt"><div class="row" style="justify-content:space-between"><b>'+escapeText(j.title)+'</b><span class="muted">'+escapeText(s.slice(5).replace('-','/'))+' ~ '+escapeText(e.slice(5).replace('-','/'))+'</span></div><div class="gbar'+(ended?' end':'')+'" role="img" aria-label="'+escapeText(j.title+' 진행 '+pct+'%')+'"><span style="width:'+pct+'%"></span></div><div class="muted'+(warn?' req':'')+'">'+escapeText(lab)+(ended?'':' · '+pct+'%')+'</div>'+(staff&&!ended?'<div style="text-align:right;margin-top:4px"><button class="button ghost" type="button" style="padding:6px 12px;font-size:13px" onclick="jobEndPage(\''+escapeText(j.id)+'\')">연장·종료</button></div>':'')+'</div>'}
+function donut(rate,label,sub){const C=188.5,has=rate!=null,p=has?Math.max(0,Math.min(1,rate)):0,col=!has?'#e5e7eb':p>=0.9?'var(--ok)':p>=0.6?'#111827':'var(--accent)';
+ return '<div class="dn"><svg viewBox="0 0 80 80" width="80" height="80" role="img" aria-label="'+escapeText(label+' '+(has?Math.round(p*100)+'%':'기록 없음'))+'"><circle cx="40" cy="40" r="30" fill="none" stroke="#e5e7eb" stroke-width="9"/>'+(has?'<circle cx="40" cy="40" r="30" fill="none" stroke="'+col+'" stroke-width="9" stroke-linecap="round" stroke-dasharray="'+(C*p).toFixed(1)+' '+C+'" transform="rotate(-90 40 40)"/>':'')+'<text x="40" y="45" text-anchor="middle" font-size="15" font-weight="700" fill="#111">'+(has?Math.round(p*100)+'%':'–')+'</text></svg><b>'+escapeText(label)+'</b><span class="muted">'+escapeText(sub)+'</span></div>'}
+/* ---------- F1.8f 메인 화면: 📢 미팅 알림 · [금일 작업 수행하기] · 지적사항 조치 ---------- */
+const WDAY='일월화수목금토',mdw=d=>/^\d{4}-\d{2}-\d{2}$/.test(d||'')?Number(d.slice(5,7))+'/'+Number(d.slice(8))+'('+WDAY[new Date(d+'T00:00:00Z').getUTCDay()]+')':escapeText(d||'');
+/** 도급인이 만든 협의체·합동점검 (실시 완료되면 사라짐) → 참여 화면(현장 QR) */
+function meetAlertHtml(d){return (d.meets||[]).map(m=>'<button class="vmeet" type="button" onclick="vgo(\'meet\')"><span><b>📢 '+escapeText((m.kinds.length?m.kinds.join(' · '):'현장 미팅'))+'</b><span class="muted">'+mdw(m.date)+(m.time?' '+escapeText(m.time):'')+' · '+escapeText(m.place||m.store)+'</span></span><span class="go">'+(m.attended?'✔ 참석 완료':'바로가기 ›')+'</span></button>').join('')}
+/** 큰 동그라미 → 오늘 현장 업무 (공사가 2개 이상이면 고르기) */
+function dayStartHtml(act){return act.length?'<div class="vgo-wrap"><button class="vgo" type="button" onclick="dayStart()"><span class="vgo-ic" aria-hidden="true">▶</span><b>금일 작업<br>수행하기</b></button><div class="muted">'+(isOpenVendor()?'신규자 등록 → 지적사항 조치':'신규자 등록 → 허가서 → 순회점검')+'</div></div>':''}
+/** F2.1 업종이 오픈지원인 업체 (작업허가서·업체 순회점검 작성 없음) */
+const isOpenVendor=()=>!!(state&&state.company&&state.company.industry==='오픈지원');
+function dayStart(){const act=((vjobs&&vjobs.jobs)||[]).filter(j=>j.status!=='ENDED');if(act.length===1){vgo('today',act[0].id);return}
+ jobPick('어느 공사인가요?',act.map(j=>['vgo(\'today\',\''+escapeText(j.id)+'\')',escapeText(j.title),escapeText(j.storeName)]))}
+/** F1.8g 현장 고르기 창 (업체·도급인 공용) · items = [[누르면 실행할 코드, 제목 HTML, 설명 HTML]] */
+function jobPick(title,items){let el=$('dsDlg');if(!el){el=document.createElement('div');el.id='dsDlg';el.className='pickbg';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.setAttribute('aria-labelledby','dsTitle');el.onclick=e=>{if(e.target===el)closeDayStart()};el.onkeydown=e=>{if(e.key==='Escape')closeDayStart()};document.body.appendChild(el)}
+ el.innerHTML='<div class="picksheet"><h2 id="dsTitle" style="margin:0 0 8px">'+escapeText(title)+'</h2>'+items.map(([fn,t,s])=>'<button class="jobitem" type="button" onclick="closeDayStart();'+fn+'"><div><b>'+t+'</b><div class="muted">'+s+'</div></div><span aria-hidden="true">›</span></button>').join('')+'<button class="button ghost" type="button" style="width:100%;margin-top:8px" onclick="closeDayStart()">닫기</button></div>';el.style.display='flex';setTimeout(()=>el.querySelector('.jobitem')?.focus(),30)}
+function closeDayStart(){const el=$('dsDlg');if(el)el.style.display='none'}
+/* 지적사항 조치: 기간(직접 · 1주 · 1달 · 전체) · 미조치 먼저 · 5줄씩 옆으로 넘김 */
+let fx={p:'all',from:'',to:''};const FX_PER=5;
+const fxShift=(t,n)=>new Date(Date.parse(t+'T00:00:00Z')-n*86400000).toISOString().slice(0,10);
+/* F1.8g 업체 메인 · 도급인 메인 공용 (도급인 = 전체 공사 · 줄마다 업체명 · 조치 완료는 [보기]) */
+const fxStaff=()=>typeof isStaffUI==='function'&&isStaffUI();
+const fxSrc=()=>fxStaff()?{today:kstToday(),jobs:(typeof sJobsOf==='function'?sJobsOf(jobData):(jobData&&jobData.jobs))||[]/* F2.6 담당 화면의 공사만 */}:{today:(vjobs&&vjobs.today)||'',jobs:(vjobs&&vjobs.jobs)||[]};
+function fxList(){const d=fxSrc(),st=fxStaff(),multi=st||d.jobs.length>1,all=[];d.jobs.forEach(j=>(j.findings||[]).forEach(f=>all.push(Object.assign({jobId:j.id,job:j.title,store:j.storeName},f))));
+ const L=all.filter(f=>(!fx.from||f.foundDate>=fx.from)&&(!fx.to||f.foundDate<=fx.to)).sort((a,b)=>((a.status==='DONE')-(b.status==='DONE'))||((b.status!=='DONE'&&b.reqN?1:0)-(a.status!=='DONE'&&a.reqN?1:0))/* F2.8 조치 요청 먼저 */||(a.foundDate<b.foundDate?1:a.foundDate>b.foundDate?-1:0));return {all,L,multi,st,today:d.today}}
+function fxRow(f,multi,st,t){const open=f.status!=='DONE',age=open&&t?dayDiff(f.foundDate,t):0,lab=escapeText(mdw(f.foundDate)+' '+(f.memo||f.item));
+ const sub=[st?f.company+(f.store?' · '+f.store:''):multi?f.job:''].filter(Boolean).map(escapeText).join('');
+ const rq=open&&typeof reqPill==='function'?reqPill(f):'',oq=open&&st&&typeof sIsOpen==='function'&&sIsOpen();  // F2.8 오픈지원 도급인 = [📢 요청]도
+ return '<div class="fxrow'+(open?'':' done')+'"><div class="fxt"><div><b>'+mdw(f.foundDate)+'</b> · '+escapeText(f.memo||f.item)+rq+'</div>'+(sub||age>=3?'<div class="muted">'+sub+(age>=3?(sub?' · ':'')+'<span class="req">'+age+'일째 미조치</span>':'')+'</div>':'')+'</div>'
+  +(oq?'<button class="button ghost" type="button" style="padding:8px 8px;font-size:12.5px" onclick="dashReq(\''+escapeText(f.jobId)+'\',\''+escapeText(f.id)+'\')" aria-label="'+lab+' 조치 요청">📢 요청</button>':'')
+  +(open?'<button class="button" type="button" onclick="'+(st?'dashFixS':'dashFix')+'(\''+escapeText(f.jobId)+'\',\''+escapeText(f.id)+'\')" aria-label="'+lab+' 조치하기">조치하기</button>'
+   :st&&f.inspId?'<button class="button ghost" type="button" onclick="dashViewS(\''+escapeText(f.jobId)+'\',\''+escapeText(f.inspId)+'\')" aria-label="'+lab+' 조치 전·후 보기">✔ 보기</button>':'<span class="fxdone">✔ 조치 완료</span>')+'</div>'}
+function fixBodyHtml(){const {L,multi,st,today}=fxList(),pages=[];for(let i=0;i<L.length;i+=FX_PER)pages.push(L.slice(i,i+FX_PER));
+ if(!pages.length)return '<p class="muted" style="margin:12px 0 4px">이 기간에 지적사항이 없습니다.</p>';
+ return '<div class="fxpages" id="fxPages" onscroll="fxScroll()" tabindex="0" aria-label="지적사항 목록 (옆으로 넘기기)">'+pages.map((p,i)=>'<div class="fxpage" aria-label="'+(i+1)+' / '+pages.length+' 쪽">'+p.map(f=>fxRow(f,multi,st,today)).join('')+'</div>').join('')+'</div>'
+  +(pages.length>1?'<div class="fxnav"><button type="button" onclick="fxPage(-1)" aria-label="이전 쪽">‹</button><span id="fxNo" aria-live="polite">1 / '+pages.length+'</span><button type="button" onclick="fxPage(1)" aria-label="다음 쪽">›</button></div>':'')}
+function fixCardHtml(){const {all,st}=fxList();if(!all.length)return '';const open=all.filter(f=>f.status!=='DONE').length,chip=(k,l)=>'<button type="button" class="fxchip'+(fx.p===k?' on':'')+'" aria-pressed="'+(fx.p===k)+'" onclick="fxPreset(\''+k+'\')">'+l+'</button>';
+ return '<div class="card" id="fxCard"><div class="vh-top" style="align-items:center"><h2 style="margin:0">'+(st?'지적사항 · 시정조치':'지적사항 조치')+'</h2>'+(open?'<span class="pill bad">미조치 '+open+'</span>':'<span class="pill ok">미조치 없음</span>')+'</div>'
+  +'<div class="fxbar"><input type="date" id="f_fxFrom" value="'+escapeText(fx.from)+'" aria-label="시작일" onchange="fxDate()"><span aria-hidden="true">~</span><input type="date" id="f_fxTo" value="'+escapeText(fx.to)+'" aria-label="끝일" onchange="fxDate()">'+chip('w','1주')+chip('m','1달')+chip('all','전체')+'</div>'
+  +'<div id="fxBody">'+fixBodyHtml()+'</div></div>'}
+function fxRedraw(){const c=$('fxCard');if(c)c.outerHTML=fixCardHtml()}
+function fxPreset(k){const t=fxSrc().today;fx={p:k,from:k==='w'?fxShift(t,6):k==='m'?fxShift(t,29):'',to:k==='all'?'':t};fxRedraw()}
+function fxDate(){fx={p:'',from:value('fxFrom'),to:value('fxTo')};if(fx.from&&fx.to&&fx.from>fx.to)fx.to=fx.from;fxRedraw()}
+function fxScroll(){const b=$('fxPages'),n=$('fxNo');if(!b||!n)return;const i=Math.round(b.scrollLeft/Math.max(1,b.clientWidth));n.textContent=(i+1)+' / '+b.children.length}
+function fxPage(d){const b=$('fxPages');if(b)b.scrollBy({left:d*b.clientWidth,behavior:'smooth'})}
+/** [조치하기] → 그 공사의 조치 등록 화면 (끝나면 메인으로) */
+async function dashFix(jobId,fid){let v=cacheGet('vendorJob',[jobId]);
+ if(!v||!((v.insp&&v.insp.open)||[]).some(f=>f.id===fid)){try{v=await call('vendorJob',jobId)}catch(e){showErr('조치 화면을 열지 못했습니다',e);return}}
+ if(!((v.insp&&v.insp.open)||[]).some(f=>f.id===fid)){vjobsAt=0;msg('이미 조치된 지적사항입니다.');loadMyJobs();return}
+ vSel=jobId;vjob=v;openResolve(fid,'vendor','dash');window.scrollTo(0,0)}
+/** F1.8g 도급인 [조치하기] → 같은 조치 등록 화면 (조치 내용 · 조치일 · 조치 후 사진) → 끝나면 메인으로 */
+async function dashFixS(jobId,fid){if(typeof setTopGuide==='function')setTopGuide('');try{inspJob=await call('inspList',jobId)}catch(e){return}
+ if(!(inspJob.findings||[]).some(f=>f.id===fid&&f.status!=='DONE')){jobAt=0;msg('이미 조치된 지적사항입니다.');sgo('dash');return}
+ jobsMode='insp';openResolve(fid,'staff','dash');window.scrollTo(0,0)}
+/** F2.8 오픈지원 도급인 [📢 요청] → 업체 화면에 "📢 조치 요청" 표시 (누를 때마다 횟수 +1) */
+async function dashReq(jobId,fid){const f=(((jobData&&jobData.jobs)||[]).find(j=>j.id===jobId)||{findings:[]}).findings.find(x=>x.id===fid);
+ if(!await askOk('조치 요청','업체(현장관리자 · 현장대리인 · 계약담당자) 화면에 「📢 조치 요청」을 표시합니다.'+(f&&f.reqN?'\n(지금까지 '+f.reqN+'회 요청)':'')+'\n요청할까요?','요청'))return;
+ try{const r=await call('findReq',jobId,fid);if(f){f.reqN=(Number(f.reqN)||0)+1}if(typeof opData!=='undefined'&&opData&&opData.job&&opData.job.id===jobId&&jobsMode==='open'){opData=r;opDraw()}else fxRedraw();jobAt=0;msg('조치 요청을 보냈습니다.')}catch(e){}}
+/** 도급인 [✔ 보기] → 그날 순회점검일지 (지적 내용 · 조치 전·후 사진) */
+async function dashViewS(jobId,inspId){if(typeof setTopGuide==='function')setTopGuide('');try{inspJob=await call('inspList',jobId)}catch(e){return}jobsMode='insp';openInspSheet(inspId,'staff')}
+/* F1.8j 업체 메인 자동 새로고침: 도급인이 미팅을 만들거나 조치·허가서가 바뀌면 새로고침 없이 반영
+ *  메인을 보고 있을 때만 30초마다 + 앱으로 돌아왔을 때 바로 · 바뀐 게 있을 때만 다시 그림 */
+let vDashTimer=null;
+function vDashPoll(){if(document.hidden||!state||state.staff||!isVendorApproved()||tab!=='my'||vmenu!=='dash'||vjob||!$('execArea')||($('dsDlg')&&$('dsDlg').style.display==='flex')||(typeof loadCount!=='undefined'&&loadCount))return;
+ callQuiet('myJobs').then(r=>{if(!r||vmenu!=='dash'||vjob||tab!=='my')return;vjobsAt=Date.now();if(JSON.stringify(r)!==JSON.stringify(vjobs)){vjobs=r;setupVMenu();renderDash()}}).catch(()=>{})}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)vDashPoll()});
+function renderDash(){const el=$('execArea');if(!el||!vjobs)return;if(!vDashTimer)vDashTimer=setInterval(vDashPoll,30000);
+ if(isOpenVendor()){clearTimeout(window.__pf);vjob=null;clearInterval(wkTimer);renderOpenDash();return}  // F2.7 오픈지원 계약담당자 대시보드
+ // v5.18 공사 화면 미리 받기는 5분에 한 번만 (예전: 대시보드를 그릴 때마다 3번씩 → 다음 버튼과 겹쳐 느려짐)
+ /* v4: 대시보드가 상세자료 3건을 자동으로 요청하던 동작 제거. 상세는 공사 선택 시에만 요청. */clearTimeout(window.__pf);vjob=null;clearInterval(wkTimer);const d=vjobs,t=d.today,act=d.jobs.filter(j=>j.status!=='ENDED'),ended=d.jobs.filter(j=>j.status==='ENDED');
+ const due=act.reduce((n,j)=>n+((j.stats&&j.stats.inspDue&&!j.stats.inspToday&&j.startDate<=t)?1:0)+((j.stats&&j.stats.openFindings)||0),0);setBadge($('vm_today'),due);setBadge($('menuBtn'),due);
+ // v5.17 계약 전 평가 유효기간 30일 이내·만료·재평가 중이면 대시보드 위에 안내
+ const cb=state.company||{},cv=cb.valid,rn=cb.renewAt?{DRAFT:'작성 중',CORRECTION:'보완 요청',SUBMITTED:'본사 검토 중',SAFETY_REVIEW:'본사 검토 중'}[cb.submissionStatus]||'진행 중':'';
+ el.innerHTML=gdRow('vdash')+'<div class="card"><h2 style="margin:0">'+escapeText(d.company)+'</h2><button class="linkbtn" type="button" style="font-size:13px;margin:2px 0" onclick="openEvalResult(\'CE\')">📊 계약 전 평가 결과 보기</button><div class="muted">'+escapeText(t)+' · 진행 중 공사 '+act.length+'건'+(ended.length?' · 종료 '+ended.length+'건':'')+'</div>'
+  +(rn?'<button class="vtodo" type="button" onclick="vgo(\'docs\')"><span>신규 작성 (다음 계약 준비)</span><span class="req">'+escapeText(rn)+' ›</span></button>':cv&&(cv.expired||cv.days<=30)?validNote(cb)+'<button class="vtodo" type="button" onclick="openNewContract()"><span>신규 작성 (다음 계약 준비)</span><span class="req">'+(cv.expired?'만료':'D-'+cv.days)+' ›</span></button>':'')+'</div>'
+  /* F2.2 오픈지원: 인력관리자가 배정 안 된 진행 중 오픈 매장 → [인력관리자 관리]로 */
+  +(isOpenVendor()&&act.some(j=>Array.isArray(j.mgrs)&&!j.mgrs.length)?'<button class="vtodo" type="button" onclick="vgo(\'mgr\')"><span>👷 인력관리자 배정이 안 된 오픈 매장</span><span class="req">'+act.filter(j=>Array.isArray(j.mgrs)&&!j.mgrs.length).length+'건 ›</span></button>':'')
+  +(isOpenVendor()&&typeof vHalfOpen==='function'?'<button class="vtodo" type="button" onclick="vHalfOpen()"><span>📊 반기 평가 결과 (6월 · 12월)</span><span>보기 ›</span></button>':'')  /* F2.5 */
+  +meetAlertHtml(d)+dayStartHtml(act)+fixCardHtml()  // F1.8f 메인: 미팅 알림 → 큰 버튼 → 지적사항 조치
+  +(d.jobs.length?'<div class="card"><h2>공사 일정</h2>'+act.concat(ended).map(j=>ganttRow(j,t)).join('')+'</div>'
+  +act.map(j=>{const S=j.stats||{},wd=S.workDays||0;return '<div class="card"><div class="vh-top"><div><h2 style="margin:0">'+escapeText(j.title)+'</h2><div class="muted">'+escapeText(j.storeName)+' · 도급인 '+escapeText(j.hostName)+' · 작업자 '+j.workers+'명</div></div></div>'
+   +'<div class="dns">'+donut(S.inspNeed?S.insp/S.inspNeed:null,'순회점검',S.inspNeed?S.insp+' / '+S.inspNeed+'회':'기록 없음')+donut(wd?S.permitDays/wd:null,'작업허가서',wd?S.permitDays+' / '+wd+'일':'기록 없음')+donut(j.workers?1:null,'신규자 교육',j.workers?j.workers+'명 등록':'등록 없음')+'</div>'
+   +'<p class="muted" style="text-align:center;margin:4px 0 0">작업일 '+wd+'일 기준 이행률</p></div>'}).join('')
+  +(!rn&&ended.length&&!act.length?newContractCard():'')  // v5.17 공사가 모두 끝났으면 종료 목록 위에 [신규 작성]
+  +(ended.length?'<div class="card"><h2>종료된 공사</h2>'+ended.map(j=>'<button class="jobitem" type="button" onclick="vgo(\'workers\',\''+escapeText(j.id)+'\')"><div><b>'+escapeText(j.title)+'</b> <span class="pill todo">종료</span><div class="muted">'+escapeText(j.storeName)+' · '+escapeText(j.startDate)+' ~ '+escapeText(j.endDate||'')+'</div></div><span aria-hidden="true">›</span></button><button class="button ghost" type="button" style="width:100%;margin:4px 0 8px;font-size:13px" onclick="openEvalResult(\'JE\',\'\',\''+escapeText(j.id)+'\')">📊 종료 평가 결과 보기</button>').join('')+'</div>':'')
+  +(!rn&&act.length&&ended.length?newContractCard():'')  // 진행 중 공사가 있으면 맨 아래
+  :'<div class="card"><div class="note">아직 배정된 공사가 없습니다.<br>도급인 담당자가 공사에 업체를 배정하면 여기에 나타납니다.</div></div>')}
+/* ---------- F2.7 오픈지원 계약담당자 대시보드: 진행 중인 오픈 매장 → 할 일 (설명 글 없음 · 위쪽 [❔ 가이드]) ---------- */
+const omd=s=>/^\d{4}-\d{2}-\d{2}$/.test(s||'')?Number(s.slice(5,7))+'/'+Number(s.slice(8,10)):'';
+const oOpenN=j=>(j.findings||[]).filter(f=>f.status!=='DONE').length;
+function renderOpenDash(){const el=$('execArea'),d=vjobs;if(!el||!d)return;if(typeof setTopGuide==='function')setTopGuide('odash');
+ const t=d.today,act=d.jobs.filter(j=>j.status!=='ENDED'),ended=d.jobs.filter(j=>j.status==='ENDED');
+ const noM=act.filter(j=>Array.isArray(j.mgrs)&&!j.mgrs.length),noS=act.filter(j=>!j.siteMgr&&j.startDate<=t),fx=act.filter(j=>oOpenN(j)>0),nF=fx.reduce((n,j)=>n+oOpenN(j),0);
+ setBadge($('vm_today'),nF);setBadge($('menuBtn'),nF);
+ const cb=state.company||{},cv=cb.valid,rn=cb.renewAt?{DRAFT:'작성 중',CORRECTION:'보완 요청',SUBMITTED:'본사 검토 중',SAFETY_REVIEW:'본사 검토 중'}[cb.submissionStatus]||'진행 중':'';
+ const st=(v,l,c)=>'<div class="'+(c||'')+'"><b>'+v+'</b>'+l+'</div>';
+ const job=j=>{const s=j.startDate,e=j.endDate||s,total=Math.max(1,dayDiff(s,e)+1),dn=dayDiff(s,t)+1,pct=Math.max(0,Math.min(100,Math.round(dn/total*100))),n=oOpenN(j);
+  const noMg=Array.isArray(j.mgrs)&&!j.mgrs.length,noSm=!j.siteMgr,warn=noMg||(noSm&&s<=t)||n>0;
+  return '<button type="button" class="odjob'+(warn?' warn':'')+'" onclick="vgo(\'today\',\''+escapeText(j.id)+'\')" aria-label="'+escapeText(j.storeName+' 상세 보기')+'">'
+   +'<span class="odrow"><b>'+escapeText(j.storeName||j.title)+'</b><span class="muted">'+omd(s)+' ~ '+omd(e)+'</span></span>'
+   +'<span class="muted odwho">현장대리인 '+(noMg?'<b class="req">미배정</b>':escapeText((j.mgrs||[]).join(', ')))+' · 관리감독자 '+(noSm?'<b class="req">미지정</b>':escapeText(j.siteMgr))+'</span>'
+   +'<span class="odbar" role="img" aria-label="'+escapeText('진행 '+pct+'%')+'"><span style="width:'+(s>t?0:pct)+'%"></span></span>'
+   +'<span class="odst">'+st(j.tbmToday?'✔':'-','TBM',j.tbmToday?'ok':'')+st(j.workers||0,'근로자')+st(n,'미조치',n?'r':'')+st(j.drillDone?'✔':'-','비상훈련',j.drillDone?'ok':'')+'</span></button>'};
+ const todo=(l,v,fn)=>'<button class="vtodo" type="button" onclick="'+fn+'"><span>'+l+'</span><span class="req">'+v+' ›</span></button>';
+ const fxGo=fx.length?'window.__vjump=\'openFixCard\';vgo(\'today\',\''+escapeText(fx[0].id)+'\')':'';
+ el.innerHTML='<div class="card" id="odJobs"><h2 style="margin:0 0 4px">진행 중인 오픈 매장</h2>'+(act.length?act.map(job).join(''):'<p class="muted" style="margin:6px 0 0">없음</p>')+'</div>'
+  +'<div id="odTodo">'+(noM.length?todo('현장대리인 미배정',noM.length+'곳','vgo(\'mgr\')'):'')
+  +(noS.length?todo('관리감독자 미지정',noS.length+'곳','vgo(\'today\',\''+escapeText(noS[0].id)+'\')'):'')
+  +(nF?todo('미조치 지적사항',nF+'건',fxGo):'')
+  +(rn?todo('신규 작성 (다음 계약 준비)',escapeText(rn),'vgo(\'docs\')'):cv&&(cv.expired||cv.days<=30)?todo('계약 전 평가 '+(cv.expired?'만료':'유효기간'),cv.expired?'만료':'D-'+cv.days,'openNewContract()'):'')+'</div>'
+  +(!rn&&ended.length&&!act.length?newContractCard():'')
+  +(ended.length?'<div class="card"><h2>끝난 오픈 매장</h2>'+ended.map(j=>'<button class="jobitem" type="button" onclick="vgo(\'workers\',\''+escapeText(j.id)+'\')"><div><b>'+escapeText(j.storeName||j.title)+'</b> <span class="pill todo">종료</span><div class="muted">'+omd(j.startDate)+' ~ '+omd(j.endDate)+'</div></div><span aria-hidden="true">›</span></button>').join('')+'</div>':'')}
+/** F2.7 ☰ 인력 명부 (관리감독자 지정 기록 · 연락처 없음) */
+async function renderVRoster(){const el=$('execArea');if(!el)return;if(typeof setTopGuide==='function')setTopGuide('vroster');
+ if(!mgrData)el.innerHTML='<div class="card"><h2>인력 명부</h2><p class="desc">불러오는 중입니다…</p></div>';
+ try{mgrData=await callQuiet('mgrBoard')}catch(e){el.innerHTML='<div class="card"><h2>인력 명부</h2><p class="desc">'+escapeText(e.message||'불러오지 못했습니다.')+'</p><button class="button" type="button" onclick="renderVRoster()">다시 시도</button></div>';return}
+ if(vmenu!=='roster'||!$('execArea'))return;$('execArea').innerHTML=mgrRosterHtml(mgrData)}
+/* ---------- 비상대피훈련 · 계약 서류 ---------- */
+function renderVDocs(){const el=$('execArea');if(!el)return;const b=state.company,rows=((state.docBoard&&state.docBoard.rows)||[]).filter(r=>r.stage==='CONTRACT'&&r.vendorDoc);
+ // v5.17 재평가 중: 계약 전 화면(사업장 정보·규정·계획서·제출)을 그대로 보여 줌
+ if(b.renewAt){el.innerHTML='<div class="card"><div class="vh-top"><h2 style="margin:0">신규 작성 · 다음 계약 준비</h2><span class="pill lock">'+(b.renewMode==='NEW'?'처음부터 작성':'이전 정보 불러옴')+'</span></div><p class="desc">진행 중인 공사 업무는 그대로 할 수 있습니다. 아래를 작성해 제출하면 본사 담당자가 다시 검토합니다.</p>'+validNote(b)
+  +(b.submissionStatus==='DRAFT'?'<button class="button ghost" type="button" style="width:100%;margin-top:10px" onclick="cancelNewContract()">↩ 신규 작성 취소 (잘못 눌렀을 때 · 제출 전만)</button>':'')+'</div>'+contractHomeHtml(b);return}
+ el.innerHTML='<div class="card"><div class="vh-top"><h2 style="margin:0">계약 서류</h2><span class="pill '+(b.valid&&b.valid.expired?'todo':'ok')+'">'+(b.valid&&b.valid.expired?'계약 전 평가 만료':'계약 전 검토 승인')+'</span></div>'+validNote(b)+(isOpenVendor()?'<button class="linkbtn" type="button" style="font-size:13px;margin:6px 0 0" onclick="openEvalResult(\'CE\')">📊 계약 전 평가 결과 보기</button>':'')/* F2.7 오픈지원은 대시보드 대신 여기 */+'<p class="desc" style="margin-top:10px">계약 전에 제출한 서류입니다. 눌러서 내려받을 수 있습니다.</p>'
+  +(rows.map(r=>{const u=r.uploads[0];return '<div class="item"><b>'+escapeText(r.name)+'</b><div class="muted">'+(u?'<a onclick="viewFile(\''+escapeText(u.id)+'\')">📄 '+escapeText(u.name)+'</a> · '+escapeText(fmtTime(u.uploadedAt)):'제출 기록 없음')+'</div></div>'}).join('')||'<p class="muted">제출한 서류가 없습니다.</p>')
+  +'<div class="line"></div>'+newContractCard(true)+'</div>'}
+/* ---------- v5.17 신규 작성 (다음 계약 준비) ---------- */
+/** 대시보드·계약 서류 화면의 [신규 작성] 카드 (inner=true면 카드 안에 넣는 모양) */
+function newContractCard(inner){const b=state.company||{},v=b.valid,need=v&&(v.expired||v.days<=30);
+ const body='<div class="vh-top"><h2 style="margin:0">'+(inner?'':'📝 ')+'신규 작성 · 다음 계약 준비</h2>'+(need?'<span class="pill todo">'+(v.expired?'평가 만료':'D-'+v.days)+'</span>':'')+'</div>'
+  +'<p class="desc">사업자 정보 → 사업장 정보 → 안전보건관리규정 → 계획서 → 제출, 처음 계약 때와 같은 순서로 다시 작성합니다. 전에 쓴 정보를 불러올 수도 있습니다.</p>'
+  +(v&&!v.expired?'<p class="muted">지금 계약 전 평가는 '+escapeText(v.until)+'까지 유효해서, 바뀐 내용이 없으면 다시 내지 않아도 새 공사에 배정될 수 있습니다.</p>':'')
+  +'<button class="button" type="button" style="width:100%;margin-top:8px" onclick="openNewContract()">＋ 신규 작성</button>';
+ return inner?body:'<div class="card">'+body+'</div>'}
+/** [신규 작성] 누르면: 이전 정보 불러오기 / 처음부터 새로 작성 / 취소 */
+function openNewContract(){let el=$('ncDlg');if(!el){el=document.createElement('div');el.id='ncDlg';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.setAttribute('aria-labelledby','ncTitle');el.style.cssText='position:fixed;inset:0;background:#0007;z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px';document.body.appendChild(el)}
+ el.innerHTML='<div class="card" style="max-width:420px;width:100%;margin:0"><h2 id="ncTitle">신규 작성</h2><p class="desc"><b>전에 입력한 정보를 불러올까요?</b></p>'
+  +'<ul class="desc" style="padding-left:18px;margin:6px 0 12px"><li><b>이전 정보 불러오기</b>: 사업자·사업장 정보, 규정·계획서 내용이 채워진 상태로 시작합니다. 바뀐 곳만 고치면 됩니다.</li><li><b>처음부터 새로 작성</b>: 빈칸으로 시작합니다. (예전 기록은 지워지지 않고 보관됩니다)</li></ul>'
+  +'<p class="muted">어느 쪽이든 규정·계획서는 다시 서명해야 제출할 수 있습니다. 작성·검토 중에도 진행 중인 공사 업무는 그대로 할 수 있습니다.</p>'
+  +'<p class="muted">잘못 눌렀다면: 제출하기 전까지는 [계약 서류] 화면의 <b>[신규 작성 취소]</b>로 원래 승인 상태로 되돌릴 수 있습니다.</p>'
+  +'<div style="display:grid;gap:8px;margin-top:12px"><button class="button" type="button" onclick="doNewContract(\'KEEP\')">이전 정보 불러오기</button><button class="button dark" type="button" onclick="doNewContract(\'NEW\')">처음부터 새로 작성</button><button class="button ghost" type="button" id="ncCancel" onclick="closeNewContract()">취소 (시작하지 않음)</button></div></div>';
+ // F1.7e 실수로 Enter를 눌러도 시작되지 않게 처음 선택은 [취소]
+ el.style.display='flex';el.onclick=e=>{if(e.target===el)closeNewContract()};el.onkeydown=e=>{if(e.key==='Escape')closeNewContract()};setTimeout(()=>$('ncCancel')&&$('ncCancel').focus(),0)}
+/** F1.7e [신규 작성 취소]: 제출 전(작성 중)일 때만 · 시작 전 승인 상태와 사업자·사업장 정보로 되돌림 */
+async function cancelNewContract(){
+ if(!confirm('신규 작성을 취소할까요?\n\n· 시작하기 전의 승인 상태로 돌아갑니다 (유효기간도 그대로)\n· 사업자 정보·사업장 정보는 시작 전 내용으로 되돌립니다\n· 작성 중에 올린 서류는 기록으로만 남고, 승인에는 쓰이지 않습니다'))return;
+ const done=s=>{vmenu='docs';display(s);window.scrollTo(0,0);msg('신규 작성을 취소했습니다. 원래 승인 상태로 돌아왔습니다.')};
+ try{done(await call('cancelRenewal'))}catch(e){
+  try{const s=await callQuiet('portalData');if(s.company&&!s.company.renewAt&&s.company.submissionStatus==='APPROVED'){done(s);return}}catch(x){}}}
+function closeNewContract(){const el=$('ncDlg');if(el)el.style.display='none'}
+async function doNewContract(mode){closeNewContract();
+ if(mode==='NEW'&&!confirm('빈칸으로 새로 작성할까요?\n사업자·사업장 정보와 규정·계획서를 처음부터 다시 입력합니다.\n\n(제출하기 전까지는 [신규 작성 취소]로 되돌릴 수 있습니다)'))return;
+ if(mode!=='NEW'&&!confirm('이전 정보를 불러와 신규 작성(다음 계약 준비)을 시작할까요?\n\n(제출하기 전까지는 [신규 작성 취소]로 되돌릴 수 있습니다)'))return;
+ if(mode==='NEW'){try{localStorage.removeItem(plKey())}catch(e){}}  // 계획서 임시 저장본도 비움
+ const done=s=>{vmenu='docs';display(s);window.scrollTo(0,0);msg(s.company&&s.company.renewMode==='NEW'?'신규 작성을 시작했습니다. 빈칸을 채워 제출해 주세요.':'이전 정보를 불러왔습니다. 바뀐 곳만 고쳐서 제출해 주세요.')};
+ try{done(await call('startRenewal',mode))}catch(e){
+  // 응답만 사라지고 서버는 처리했을 수 있음 → 현재 상태를 다시 받아 시작됐으면 그대로 진행
+  try{const s=await callQuiet('portalData');if(s.company&&s.company.renewAt){done(s);return}}catch(x){}}}
