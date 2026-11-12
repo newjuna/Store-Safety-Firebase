@@ -6,7 +6,7 @@
  * - 아직 옮기지 않은 기능은 '아직 Firebase로 옮기지 않은 기능' 안내
  */
 (function () {
-  const VERSION = '26.10.19 S8-2';
+  const VERSION = '26.10.19 S8-3';
   /* ---------- 기존 Code.gs와 같은 기준값 ---------- */
   /* F2.1 업종 '오픈지원' 추가 (매장 오픈 인력 · 인력사무소형) · 인테리어(마감) = 지금까지의 공사 흐름 그대로 */
   const CFG = {
@@ -815,6 +815,14 @@
   API.acAdd = async (a, d) => relay('acAdd', { d: d || {} });
   API.acFix = async (a, id, plan, phs) => relay('acFix', { id: tidy(id, 60), plan: tidy(plan, 800), phs: (Array.isArray(phs) ? phs : []).slice(0, 10) }, false, 240000);
   API.acPic = async (a, id, fid) => relay('acPic', { id: tidy(id, 60), fid: tidy(fid, 80) }, true);
+  /* S8-3 반기 평가 (본사 · 업체) */
+  API.heBoard = async (a, period) => { await staffOnly(a); return relay('heBoard', { period: tidy(period, 6) }, true, 180000); };
+  API.heGet = async (a, id) => { await staffOnly(a); return relay('heGet', { id: tidy(id, 80) }, true); };
+  API.heRecalc = async (a, period) => relay('heRecalc', { period: tidy(period, 6) }, false, 240000);
+  API.heMail = async (a, period) => relay('heMail', { period: tidy(period, 6) }, false, 240000);
+  API.hePlanOk = async (a, id) => relay('hePlanOk', { id: tidy(id, 80) });
+  API.heMine = async () => relay('heMine', {}, true);
+  API.hePlan = async (a, id, text) => relay('hePlan', { id: tidy(id, 80), text: tidy(text, 2000) });
   /* S5 시정요구서 (업체 · 본사) — 모두 중계 서버가 확인 */
   API.vcList = async () => relay('vcList', {}, true);
   API.vcFix = async (a, id, memo, ph) => relay('vcFix', { id: tidy(id, 60), memo: tidy(memo, 500), ph: ph && ph.data ? ph : null }, false, 120000);
