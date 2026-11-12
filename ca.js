@@ -31,7 +31,7 @@ function caDoc(who){const D=who==='V'?caV:caS,x=D&&D.list.find(i=>i.id===caCur);
  el.innerHTML='<div style="max-width:720px;margin:0 auto"><div class="row" style="justify-content:flex-end;margin-bottom:8px"><button class="button" type="button" onclick="printA4(\'caDocBody\',\'시정조치 요구서\')">인쇄</button><button class="button ghost" type="button" onclick="$(\'caDocDlg\').remove()">닫기</button></div>'
   +'<div id="caDocBody" class="cadoc"><h1>시정조치 요구서</h1><table>'
   +'<tr><th>수 신</th><td>'+e(co)+' 대표</td></tr><tr><th>발 신</th><td>(주)아성다이소 '+e((P.ceo&&P.ceo.title)||'')+' '+e((P.ceo&&P.ceo.name)||'')+'</td></tr>'
-  +'<tr><th>문서 번호</th><td>'+e(x.id)+'</td></tr><tr><th>발 행 일</th><td>'+e(x.foundDate)+'</td></tr><tr><th>장 소</th><td>다이소 '+e(x.storeName)+' ('+e(x.store)+')</td></tr><tr><th>점 검</th><td>'+e(x.week)+' 주 점장 주간 순회점검</td></tr>'
+  +'<tr><th>문서 번호</th><td>'+e(x.id)+'</td></tr><tr><th>발 행 일</th><td>'+e(x.foundDate)+'</td></tr><tr><th>장 소</th><td>다이소 '+e(x.storeName)+' ('+e(x.store)+')</td></tr><tr><th>점 검</th><td>'+(x.source==='JOINT'?'분기 합동안전보건점검 (도급인 · 수급인 합동)':e(x.week)+' 주 점장 주간 순회점검')+'</td></tr>'
   +'<tr><th>미흡 사항</th><td><b>'+e(x.name)+'</b>'+((x.items||[]).length?'<br>'+x.items.map(t=>'· '+e(t)).join('<br>'):'')+(x.memo?'<br>'+e(x.memo):'')+(x.ph&&caMem[x.ph]?'<img src="'+caMem[x.ph]+'" alt="">':'')+'</td></tr>'
   +'<tr><th>조치 기한</th><td><b>'+e(x.dueDate)+'</b> (발행일로부터 7일)</td></tr>'
   +(x.status==='DONE'?'<tr><th>조치 결과</th><td>'+e(x.fixDay||'')+' · '+e(x.fixMemo||'')+(x.fixPh&&caMem[x.fixPh]?'<img src="'+caMem[x.fixPh]+'" alt="">':'')+'</td></tr>':'')
