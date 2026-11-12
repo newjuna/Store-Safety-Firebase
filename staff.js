@@ -3,7 +3,7 @@
  *  S2~ 매장 · 점장 점검 · 시정요구서 · 협의체 메뉴가 차례로 들어옴
  *  화면은 지금 'jobs' 칸에 그림 (loadJobs → renderJobs) */
 let smenu='dash',svData=null,svFilter='all';
-const SMENU={dash:'대시보드',flyer:'업체 안내문',vendors:'업체 현황',check:'점검 현황',items:'점검 항목',stores:'매장 목록',depts:'부서 관리',tpl:'표준양식 관리',staff:'조직도',data:'데이터 관리',principal:'도급인 책임자'};
+const SMENU={dash:'대시보드',flyer:'업체 안내문',vendors:'업체 현황',check:'점검 현황',ca:'시정요구서',items:'점검 항목',stores:'매장 목록',depts:'부서 관리',tpl:'표준양식 관리',staff:'조직도',data:'데이터 관리',principal:'도급인 책임자'};
 const isSafetyUI=()=>!!(state&&(state.isMaster||(state.staff&&state.staff.role==='SAFETY')));
 const isStaffUI=()=>!!(state&&state.staff);
 const kstToday=()=>new Date(Date.now()+9*3600e3).toISOString().slice(0,10);
@@ -23,7 +23,7 @@ function sgo(m){if(typeof setTopGuide==='function')setTopGuide('');if(!SMENU[m])
 function sBadges(b){if(!isStaffUI())return;b=b||{};const vd=(b.admin||0)+(b.review||0);setBadge($('sm_vendors'),vd);setBadge($('menuBtn'),vd)}
 /* ---------- 'jobs' 칸 화면 (메뉴별) ---------- */
 function renderJobs(){jobsMode='list';roomId='';clearInterval(roomTimer);const d=jobData;if(!d)return;if(typeof setTopGuide==='function')setTopGuide('');
- const H={flyer:sFlyer,dash:sDash,data:sData,principal:sPrincipal,stores:sStores,depts:sDepts,check:sChk,items:sItems}[smenu]||sDash;$('jobs').innerHTML=H(d)}
+ const H={flyer:sFlyer,dash:sDash,data:sData,principal:sPrincipal,stores:sStores,depts:sDepts,check:sChk,ca:sCa,items:sItems}[smenu]||sDash;$('jobs').innerHTML=H(d)}
 /** 대시보드 (S1 최소) · S4에서 매장 점검 현황으로 바뀜 */
 function sDash(d){const B=(state&&state.badges)||{},me=(d&&d.me)||state.staff||{};
  const todo=[['vendors','가입 승인 대기',B.admin||0,'곳'],['vendors','제출자료 검토',B.review||0,'건']].filter(x=>x[2]>0)

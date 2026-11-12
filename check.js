@@ -4,7 +4,7 @@
 let chkB=null,chkW='',chkLv=['all'],chkCnt=null,chkDet=null,ckE=null,ckInfo=null,ckTab='c',ckMon=new Date().getMonth()+1,ckDirty=false;
 const chkAdd=(w,n)=>{const d=new Date(w+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
 const chkWl=w=>w?w.slice(5).replace('-','.'):'';
-function ckReset(){chkDet=null;if(!ckDirty)ckE=null}
+function ckReset(){chkDet=null;if(!ckDirty)ckE=null;if(typeof caCur!=='undefined')caCur=''}
 function chkCss(){if(typeof shCss==='function')shCss();if(typeof stCss==='function')stCss();if($('chkCss'))return;const s=document.createElement('style');s.id='chkCss';s.textContent=
  '.chkbar{display:flex;align-items:center;justify-content:space-between;gap:8px}.chkbar button{min-width:44px}.chkbar b{font-size:18px}'
  +'.chknum{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}.chknum div{border:1px solid var(--line);border-radius:10px;padding:8px 4px;text-align:center}.chknum b{display:block;font-size:18px}.chknum span{font-size:12px;color:var(--sub)}.chknum .r b{color:var(--accent)}'
