@@ -183,7 +183,7 @@ async function jtVSet(id){const el=$('jtp_'+id),n=el?el.value.trim():'';if(!n){i
 
 /* ---------- 링크로 들어온 화면 (로그인 화면 없이) ----------
  *  ?review=JNT-토큰 = 참석 QR (이 기기 익명 계정 · 이름만) / ?review=CSI-토큰 = CS팀 담당자 초대 (본인 Google 계정) */
-async function jtLinkBoot(){jtLinkOn=true;jtCss();const csi=/^CSI-/.test(LINK_REVIEW),cmt=/^CMT-/.test(LINK_REVIEW),tok=LINK_REVIEW.slice(4),T=csi?'CS팀 담당자 등록':cmt?'협의체 참석':'합동점검 참석';
+async function jtLinkBoot(){jtLinkOn=true;jtCss();const csi=/^CSI-/.test(LINK_REVIEW),cmt=/^CMT-/.test(LINK_REVIEW),wkr=/^WKR-/.test(LINK_REVIEW),tok=LINK_REVIEW.slice(4),T=csi?'CS팀 담당자 등록':cmt?'협의체 참석':wkr?'작업자 등록':'합동점검 참석';
  $('loginView').hidden=true;$('appView').hidden=false;document.title=T+' · 입고·재고 안전관리';
  ['my','admin','review','tpl','staff','jobs','vendors'].forEach(n=>$(n)&&$(n).classList.toggle('hidden',n!=='my'));
  ['gearBtn','guideBtn','menuBtn'].forEach(id=>$(id)&&($(id).hidden=true));if($('identity'))$('identity').textContent=T;if($('pageTitle'))$('pageTitle').textContent=T;
@@ -192,6 +192,7 @@ async function jtLinkBoot(){jtLinkOn=true;jtCss();const csi=/^CSI-/.test(LINK_RE
  if(csi){jtCsiView(tok);return}
  try{await FB.anon()}catch(e){el.innerHTML=jtCard('접속하지 못했습니다','<p class="muted">'+escapeText((e&&e.message)||'')+'</p><button class="button" type="button" onclick="location.reload()">다시 시도</button>');return}
  if(cmt&&typeof cmQrView==='function'){cmQrView(tok);return}  // S8-1 comeet.js
+ if(wkr&&typeof wrQrView==='function'){wrQrView(tok);return}  // S8-2 wr.js
  jtQrView(tok)}
 async function jtQrView(tok,edit){const el=$('my'),e=escapeText;let r;try{r=await FB.sm('jtQr',{token:tok})}catch(x){el.innerHTML=jtCard('합동점검 참석','<p class="muted">'+e((x&&x.message)||'')+'</p><button class="button" type="button" onclick="jtQrView(\''+e(tok)+'\')">다시 시도</button>');return}jtQrDraw(tok,r,edit)}
 function jtQrDraw(tok,r,edit){const el=$('my'),e=escapeText,T=e(tok);
