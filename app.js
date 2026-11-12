@@ -61,7 +61,7 @@ function switchTab(which){tab=which;toggleMenu(false);stopScan();if($(which+'Tab
 /* F1.9t 홈 화면 앱(PWA): 서비스 워커 등록 (저장 안 함 · 홈 화면에 추가할 수 있게만) */
 if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 // ★ 화면 버전: 여기 한 줄만 고침 (GitHub만 올리면 로그인 화면·앱 화면·메뉴에 모두 반영, Code.gs 수정 불필요)
-const UI_VERSION='26.10.19 S8-3';
+const UI_VERSION='26.10.19 S8-4';
 /* F1.8o 전화번호 · 사업자번호: 숫자만 쳐도 '-' 자동 (서버는 원래 숫자만 골라 씀) */
 function fmtTel(v){const d=String(v||'').replace(/\D/g,'').slice(0,11);if(d.startsWith('02'))return d.length<3?d:d.length<6?d.slice(0,2)+'-'+d.slice(2):d.length<10?d.slice(0,2)+'-'+d.slice(2,5)+'-'+d.slice(5):d.slice(0,2)+'-'+d.slice(2,6)+'-'+d.slice(6,10);
  return d.length<4?d:d.length<8?d.slice(0,3)+'-'+d.slice(3):d.length<11?d.slice(0,3)+'-'+d.slice(3,6)+'-'+d.slice(6):d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7)}
@@ -663,10 +663,10 @@ async function post_(body){const __pt=Date.now(),__name=body.op==='call'?String(
  if(!o||!o.ok)throw Error((o&&o.error)||'처리에 실패했습니다.'); __ok=true;return o.data}finally{perfRecord('network',__name,Date.now()-__pt,__ok)}}
 /** 로그인 후 서버 기능 호출 (이름은 Code.gs 허용 목록에 있어야 함) */
 async function api(fn,args){const __pt=Date.now();let __ok=false;try{if(!EXEC_OK)throw Error('config.js에 Firebase 설정값이 없습니다.');const r=await FB.call(fn,args||[]);__ok=true;sessTouch();return r}catch(e){if(/로그인이 만료|로그인 정보/.test(e.message))setTimeout(()=>logout('로그인이 만료되었습니다. 다시 로그인해 주세요.'),0);throw e}finally{perfRecord('network',fn,Date.now()-__pt,__ok)}}
-const LOGIN_HELP={VENDOR:'처음 방문한 업체는 로그인 후 사업자 등록을 신청합니다.',STAFF:'회사직원명단에 등록된 개인 Google 계정(Gmail)으로 로그인해 주세요.'};
-function loginMode(){const r=document.querySelector('input[name=loginMode]:checked');return r?r.value:'VENDOR'}
-function loginHelp(){/* F2.2 인력관리자 초대 링크 · F2.3 현장관리자 지정 QR → 접속 구분은 협력업체로 */if(/^(MGR|SMG|DRL)-/.test(LINK_REVIEW)){const r=document.querySelector('input[name=loginMode][value=VENDOR]');if(r&&!r.checked){r.checked=true}$('loginHelp').textContent=(/^DRL-/.test(LINK_REVIEW)?'비상훈련 참석 QR로':/^SMG-/.test(LINK_REVIEW)?'현장관리자 지정 QR로':'인력관리자 초대 링크로')+' 들어왔습니다. [협력업체]를 고르고 본인 Google 계정으로 로그인하세요.';return}
- $('loginHelp').textContent=LOGIN_HELP[loginMode()]}
+/* S8-3 접속 구분 없앰: 직원 명단(STAFF)에 있는 계정 = 담당자 화면 · 그 밖 = 협력업체 화면 (계정만 보고 자동) */
+const LOGIN_HELP='다이소 직원은 직원 명단에 등록된 Google 계정 · 처음 방문한 업체는 로그인 후 사업자 등록을 신청합니다.';
+function loginMode(){return ''}
+function loginHelp(){$('loginHelp').textContent=LOGIN_HELP}
 function showLogin(note){$('appView').hidden=true;$('loginView').hidden=false;document.title='입고·재고 안전관리 | 로그인';$('loginStatus').textContent=note||'';renderGoogleBtn()}
 function showApp(){$('loginView').hidden=true;$('appView').hidden=false;document.title='입고·재고 안전관리';navInit()}
 let gsiDone=false;
@@ -742,12 +742,10 @@ window.addEventListener('popstate',e=>{if(!navGuard||(e.state&&e.state.dsg))retu
  if(Date.now()-exitAt<2500){navGuard=false;history.back();return}
  exitAt=Date.now();msg('뒤로 버튼을 한 번 더 누르면 나갑니다.');try{history.pushState({dsg:1},'')}catch(x){}});
 function initLogin(){
- // 접속 구분: 마지막 선택 기억
- const radios=[...document.querySelectorAll('input[name=loginMode]')];
- try{const s=localStorage.getItem('loginMode');const r=radios.find(x=>x.value===s);if(r)r.checked=true}catch(e){}
- radios.forEach(x=>x.addEventListener('change',()=>{try{localStorage.setItem('loginMode',loginMode())}catch(e){}loginHelp()}));
- /* F1.9i 메일의 평가 결과 링크로 들어왔으면 접속 구분을 미리 골라 둠 */
- {let p=null;try{p=JSON.parse(localStorage.getItem('evresGo')||'null')}catch(e){}if(p&&p.f&&Date.now()-Number(p.t||0)<7200000){const v=p.f==='staff'?'STAFF':'VENDOR',r=radios.find(x=>x.value===v);if(r)r.checked=true;$('loginSub').innerHTML='📊 평가 결과 링크로 들어왔습니다. <b>'+(v==='STAFF'?'다이소 담당자':'협력업체')+'</b>로 로그인하면 바로 열립니다.'}}
+ /* S8-3 접속 구분 없앰 · 예전에 기억해 둔 구분은 지움 (계정만 보고 자동) */
+ try{localStorage.removeItem('loginMode');localStorage.removeItem('fbMode')}catch(e){}
+ /* F1.9i 메일의 평가 결과 링크로 들어왔으면 안내만 */
+ {let p=null;try{p=JSON.parse(localStorage.getItem('evresGo')||'null')}catch(e){}if(p&&p.f&&Date.now()-Number(p.t||0)<7200000){$('loginSub').innerHTML='평가 결과 링크로 들어왔습니다. 로그인하면 바로 열립니다.'}}
  loginHelp();inAppBox();
  // 버전 표시: 위쪽 UI_VERSION
  $('loginVer').textContent=UI_VERSION;
