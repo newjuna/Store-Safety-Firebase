@@ -201,5 +201,5 @@ function shDetailHtml(d,backFn,backTxt){shCss();const fx=d.fix||{},pics=[];
   +sec(escapeText((d.focus&&d.focus.month)+'월 '+((d.focus&&d.focus.name)||'')),Fo,x=>x.st==='R',x=>x.t,'안전 '+Fo.filter(x=>x.st==='S').length+' / '+Fo.length);
  return {html,pics}}
 
-/* ---------- 협의체 결과 (S6에서 채움) ---------- */
-function shCouncil(){shMark('협의체 결과');shEl().innerHTML='<div class="card"><p class="muted" style="margin:0">아직 없습니다.</p></div>'}
+/* ---------- 협의체 결과 (S6 · council.js shCouncilView) ---------- */
+function shCouncil(){shCouncilView()}  // S6 council.js

@@ -17,15 +17,17 @@ function stCss(){if($('stCss'))return;const s=document.createElement('style');s.
  +'.dprow{display:flex;gap:6px;align-items:center;margin:6px 0}.dprow input{flex:1;min-width:0;padding:10px;border:1px solid var(--line);border-radius:10px;font:inherit}'
  +'.dpsel{width:100%;padding:7px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}.dpsel.no{border-color:var(--accent)}';document.head.appendChild(s)}
 /** 매장 · 부서 받기 (처음은 로딩 창 · 다음부터는 조용히) */
-async function stLoad(quiet){if(stBusy)return;stBusy=true;try{stB=await (quiet?callQuiet:call)('storeBoard')}catch(e){}stBusy=false;if(tab==='jobs'&&['stores','depts'].includes(smenu))renderJobs()}
-const stWait=t=>'<div class="card"><h2>'+t+'</h2><p class="muted">불러오는 중입니다…</p></div>';
+let stErr='';
+async function stLoad(quiet){if(stBusy)return;stBusy=true;try{stB=await (quiet?callQuiet:call)('storeBoard')}catch(e){stErr=(e&&e.message)||'불러오지 못했습니다.'}stBusy=false;if(tab==='jobs'&&['stores','depts'].includes(smenu))renderJobs()}
+/** 불러오는 중 · 실패하면 한 번 안내 (다시 시도 = 다시 받기 · 계속 다시 부르지 않게) */
+const stWait=t=>{if(stErr){const m=stErr;stErr='';return '<div class="card"><h2>'+t+'</h2><p class="muted">'+escapeText(m)+'</p><button class="button" type="button" onclick="renderJobs()">다시 시도</button></div>'}stLoad();return '<div class="card"><h2>'+t+'</h2><p class="muted">불러오는 중입니다…</p></div>'};
 /** 팀(지역) 목록 + 영업 매장 수 · 부서 연결 */
 function stTeams(){const n={};stAct().forEach(s=>{const t=s[2]||'';n[t]=(n[t]||0)+1});const map=(stB&&stB.teams)||[],M={};map.forEach(([t,id])=>{M[t]=id});
  Object.keys(M).forEach(t=>{if(!(t in n))n[t]=0});return Object.keys(n).filter(Boolean).sort(stCmp).map(t=>({t,n:n[t],d:M[t]||''}))}
 const stDeptName=id=>((stB&&stB.depts)||[]).find(d=>d.id===id)?.name||'';
 
 /* ---------- 매장 목록 ---------- */
-function sStores(){stCss();if(!stB){stLoad();return stWait('매장 목록')}if(stPv){jobsMode='form';return stPvHtml()}
+function sStores(){stCss();if(!stB){return stWait('매장 목록')}if(stPv){jobsMode='form';return stPvHtml()}
  const A=stAct(),gone=stB.stores.length-A.length,by=k=>A.filter(s=>s[3]===k).length,T=stTeams(),noD=T.filter(x=>x.n&&!x.d).length,ed=stB.canEdit;
  return '<div class="card"><div class="vh-top"><h2 style="margin:0">매장 목록</h2>'+(ed?'<button class="button'+(stPaste?' ghost':'')+'" type="button" onclick="stPasteTg()">'+(stPaste?'닫기':'붙여넣기로 반영')+'</button>':'')+'</div>'
   +'<div class="muted">'+(stB.at?'반영 '+escapeText(fmtTime(stB.at))+' · '+escapeText(stB.by||''):'아직 반영한 목록이 없습니다')+'</div>'
@@ -87,7 +89,7 @@ async function stSave(){const p=stPv;if(!p)return;if(!await askOk('매장 목록
 
 /* ---------- 부서 관리 ---------- */
 function dpInit(){const T=stTeams();dpEdit={depts:((stB&&stB.depts)||[]).map(d=>({id:d.id,name:d.name})),teams:T.map(x=>x.t),cnt:T.map(x=>x.n),map:T.map(x=>x.d),dirty:false}}
-function sDepts(){stCss();if(!stB){stLoad();return stWait('부서 관리')}if(!dpEdit)dpInit();const E=dpEdit,ed=stB.canEdit,dis=ed?'':' disabled';if(E.dirty)jobsMode='form';
+function sDepts(){stCss();if(!stB){return stWait('부서 관리')}if(!dpEdit)dpInit();const E=dpEdit,ed=stB.canEdit,dis=ed?'':' disabled';if(E.dirty)jobsMode='form';
  const noD=E.map.filter((d,i)=>!d&&E.cnt[i]).length,opt=cur=>'<option value="">부서 미지정</option>'+E.depts.map(d=>'<option value="'+escapeText(d.id)+'"'+(d.id===cur?' selected':'')+'>'+escapeText(d.name||'(이름 없음)')+'</option>').join('');
  const order=E.teams.map((t,i)=>i).sort((a,b)=>(!!E.map[a]-!!E.map[b])||stCmp(E.teams[a],E.teams[b]));
  return '<div class="card">'+(E.dirty?'<button class="button ghost" type="button" onclick="dpReset()">← 되돌리기</button>':'')+'<h2 style="'+(E.dirty?'margin-top:12px':'margin:0')+'">부서</h2>'

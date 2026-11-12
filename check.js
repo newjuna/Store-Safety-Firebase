@@ -4,7 +4,7 @@
 let chkB=null,chkW='',chkLv=['all'],chkCnt=null,chkDet=null,ckE=null,ckInfo=null,ckTab='c',ckMon=new Date().getMonth()+1,ckDirty=false;
 const chkAdd=(w,n)=>{const d=new Date(w+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
 const chkWl=w=>w?w.slice(5).replace('-','.'):'';
-function ckReset(){chkDet=null;if(!ckDirty)ckE=null;if(typeof caCur!=='undefined')caCur=''}
+function ckReset(){chkDet=null;if(!ckDirty)ckE=null;if(typeof caCur!=='undefined')caCur='';if(typeof coSel!=='undefined'){coSel='';coCur=null}}
 function chkCss(){if(typeof shCss==='function')shCss();if(typeof stCss==='function')stCss();if($('chkCss'))return;const s=document.createElement('style');s.id='chkCss';s.textContent=
  '.chkbar{display:flex;align-items:center;justify-content:space-between;gap:8px}.chkbar button{min-width:44px}.chkbar b{font-size:18px}'
  +'.chknum{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}.chknum div{border:1px solid var(--line);border-radius:10px;padding:8px 4px;text-align:center}.chknum b{display:block;font-size:18px}.chknum span{font-size:12px;color:var(--sub)}.chknum .r b{color:var(--accent)}'
@@ -16,14 +16,15 @@ function chkCss(){if(typeof shCss==='function')shCss();if(typeof stCss==='functi
  +'.ckgd label{cursor:pointer;color:var(--main);font-weight:600}.ckgd input{display:none}.ckgd .x{border:0;background:none;color:var(--accent);font:inherit;font-size:12.5px;cursor:pointer}';document.head.appendChild(s)}
 
 /* ---------- 점검 현황 ---------- */
-async function chkLoad(quiet){try{chkB=await (quiet?callQuiet:call)('checkBoard');if(!chkW||chkW>chkB.thisWeek||chkW<chkB.start)chkW=chkB.thisWeek}catch(e){}
+let chkErr='',ckErr='';
+async function chkLoad(quiet){try{chkB=await (quiet?callQuiet:call)('checkBoard');if(!chkW||chkW>chkB.thisWeek||chkW<chkB.start)chkW=chkB.thisWeek}catch(e){chkErr=(e&&e.message)||'불러오지 못했습니다.'}
  try{chkCnt=await callQuiet('scCounts')}catch(e){}if(tab==='jobs'&&smenu==='check')renderJobs()}
 function chkRows(){const B=chkB,T={},DN={};B.teams.forEach(([t,d])=>{T[t]=d});B.depts.forEach(d=>{DN[d.id]=d.name});
  const W=[];for(let w=B.start;w<=B.thisWeek&&W.length<520;w=chkAdd(w,7))W.push(w);const cur=B.weeks[chkW]||{};
  return B.stores.map(r=>{const c=r[0];return {c,n:r[1],t:r[2]||'(팀 없음)',k:r[3],dept:DN[T[r[2]]]||'부서 미지정',s:cur[c]||null,owed:W.filter(w=>w<=chkW&&!(B.weeks[w]||{})[c]).length}})}
 function chkSum(L){const sub=L.filter(x=>x.s);return {n:L.length,sub:sub.length,c:sub.reduce((a,x)=>a+(x.s.c||0),0),d:sub.reduce((a,x)=>a+(x.s.d||0),0),f:sub.reduce((a,x)=>a+(x.s.f||0),0),late:L.filter(x=>x.owed>(x.s?0:1)).length}}
 const chkPct=(a,b)=>b?Math.round(a/b*100)+'%':'–';
-function sChk(){chkCss();if(chkDet){jobsMode='form';return chkDet}if(!chkB){chkLoad();return '<div class="card"><h2>점검 현황</h2><p class="muted">불러오는 중입니다…</p></div>'}
+function sChk(){chkCss();if(chkDet){jobsMode='form';return chkDet}if(chkErr){const m=chkErr;chkErr='';return '<div class="card"><h2>점검 현황</h2><p class="muted">'+escapeText(m)+'</p><button class="button" type="button" onclick="renderJobs()">다시 시도</button></div>'}if(!chkB){chkLoad();return '<div class="card"><h2>점검 현황</h2><p class="muted">불러오는 중입니다…</p></div>'}
  const B=chkB,all=chkRows(),[lv,a,b]=chkLv,L=lv==='all'?all:lv==='dept'?all.filter(x=>x.dept===a):all.filter(x=>x.dept===a&&x.t===b),S=chkSum(L);
  const prev=chkW>B.start,next=chkW<B.thisWeek;
  let h='<div class="card"><div class="chkbar"><button class="button ghost" type="button" onclick="chkWeek(-7)"'+(prev?'':' disabled')+' aria-label="지난주">‹</button><b>'+chkWl(chkW)+' (월) 주'+(chkW===B.thisWeek?' · 이번 주':'')+'</b><button class="button ghost" type="button" onclick="chkWeek(7)"'+(next?'':' disabled')+' aria-label="다음 주">›</button></div>'
@@ -51,9 +52,9 @@ async function chkOpen(code){let d;try{d=await call('scDetail',code,code+'_'+chk
 function chkBack(){chkDet=null;renderJobs()}
 
 /* ---------- 점검 항목 관리 (안전보건팀) ---------- */
-async function ckLoad(){try{ckInfo=await call('ckGet');ckE=JSON.parse(JSON.stringify(ckInfo.check));ckDirty=false}catch(e){}if(tab==='jobs'&&smenu==='items')renderJobs()}
+async function ckLoad(){try{ckInfo=await call('ckGet');ckE=JSON.parse(JSON.stringify(ckInfo.check));ckDirty=false}catch(e){ckErr=(e&&e.message)||'불러오지 못했습니다.'}if(tab==='jobs'&&smenu==='items')renderJobs()}
 const ckList=()=>ckTab==='c'?ckE.common:ckTab==='d'?ckE.contract:((ckE.focus[ckMon]=ckE.focus[ckMon]||{id:'F'+('0'+ckMon).slice(-2),name:ckMon+'월 집중점검',items:[]}).items);
-function sItems(){chkCss();if(!ckE){ckLoad();return '<div class="card"><h2>점검 항목</h2><p class="muted">불러오는 중입니다…</p></div>'}if(ckDirty)jobsMode='form';const ed=ckInfo.canEdit,dis=ed?'':' disabled';
+function sItems(){chkCss();if(ckErr){const m=ckErr;ckErr='';return '<div class="card"><h2>점검 항목</h2><p class="muted">'+escapeText(m)+'</p><button class="button" type="button" onclick="renderJobs()">다시 시도</button></div>'}if(!ckE){ckLoad();return '<div class="card"><h2>점검 항목</h2><p class="muted">불러오는 중입니다…</p></div>'}if(ckDirty)jobsMode='form';const ed=ckInfo.canEdit,dis=ed?'':' disabled';
  const cntOf=G=>G.reduce((n,g)=>n+(g.use!==false?g.items.filter(x=>x.use!==false).length:0),0);
  let h='<div class="card"><h2 style="margin:0">점검 시작 주</h2><div class="row" style="margin-top:8px"><input type="date" id="f_ckStart" value="'+escapeText(ckInfo.startWeek)+'" max="'+escapeText(ckInfo.thisWeek)+'" style="padding:9px;border:1px solid var(--line);border-radius:8px;font:inherit"'+dis+'>'+(ed?'<button class="button ghost" type="button" onclick="ckStartSave()">저장</button>':'')+'</div><div class="muted" style="margin-top:4px">이 주부터 안 낸 주 = 밀린 주 (월요일)</div></div>'
   +'<div class="card"><div class="seg" role="tablist" style="margin-top:0">'+[['c','공통 '+cntOf(ckE.common)],['d','도급 '+cntOf(ckE.contract)],['f','월별 집중']].map(([k,t])=>'<button type="button" role="tab" aria-selected="'+(ckTab===k)+'" class="'+(ckTab===k?'on':'')+'" onclick="ckTabGo(\''+k+'\')">'+t+'</button>').join('')+'</div>'

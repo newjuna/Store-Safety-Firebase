@@ -56,8 +56,8 @@ async function caFixSave(){const miss=[];if(!caFix.memo.trim())miss.push('caFixM
  catch(e){if(/이미 조치/.test((e&&e.message)||'')){caCur='';caVLoad().then(()=>renderDash())}}}
 
 /* ---------- 본사 (☰ 시정요구서) ---------- */
-async function caSLoad(){try{caS=await call('vcAll')}catch(e){}if(tab==='jobs'&&smenu==='ca')renderJobs()}
-function sCa(){caCss();if(!caS){caSLoad();return '<div class="card"><h2>시정요구서</h2><p class="muted">불러오는 중입니다…</p></div>'}const t=caS.today;
+async function caSLoad(){try{caS=await call('vcAll')}catch(e){caS={list:[],today:'',err:(e&&e.message)||'불러오지 못했습니다.'}}if(tab==='jobs'&&smenu==='ca')renderJobs()}
+function sCa(){caCss();if(!caS){caSLoad();return '<div class="card"><h2>시정요구서</h2><p class="muted">불러오는 중입니다…</p></div>'}if(caS.err){const m=caS.err;caS=null;return '<div class="card"><h2>시정요구서</h2><p class="muted">'+escapeText(m)+'</p><button class="button" type="button" onclick="renderJobs()">다시 시도</button></div>'}const t=caS.today;
  if(caCur){const x=caS.list.find(i=>i.id===caCur);if(x){jobsMode='form';return caDetailHtml(x,'S',t,'caSBack()')}caCur=''}
  const L=caS.list,F=[['open','미조치',x=>x.status!=='DONE'],['late','기한 지남',x=>caLate(x,t)],['done','완료',x=>x.status==='DONE'],['all','전체',()=>true]],f=(F.find(x=>x[0]===caF)||F[0])[2],q=String(caQ||'').replace(/\s/g,'');
  const M=L.filter(f).filter(x=>!q||String(x.company+x.storeName).replace(/\s/g,'').includes(q));
