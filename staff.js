@@ -3,7 +3,7 @@
  *  S2~ 매장 · 점장 점검 · 시정요구서 · 협의체 메뉴가 차례로 들어옴
  *  화면은 지금 'jobs' 칸에 그림 (loadJobs → renderJobs) */
 let smenu='dash',svData=null,svFilter='all';
-const SMENU={dash:'대시보드',flyer:'업체 안내문',vendors:'업체 현황',check:'점검 현황',ca:'시정요구서',co:'협의체',joint:'합동점검',items:'점검 항목',stores:'매장 목록',depts:'부서 관리',tpl:'표준양식 관리',staff:'조직도',data:'데이터 관리',principal:'도급인 책임자'};
+const SMENU={dash:'대시보드',flyer:'업체 안내문',vendors:'업체 현황',check:'점검 현황',ca:'시정요구서',co:'협의체',joint:'합동점검',half:'반기 평가',items:'점검 항목',stores:'매장 목록',depts:'부서 관리',tpl:'표준양식 관리',staff:'조직도',data:'데이터 관리',principal:'도급인 책임자'};
 const isSafetyUI=()=>!!(state&&(state.isMaster||(state.staff&&state.staff.role==='SAFETY')));
 const isStaffUI=()=>!!(state&&state.staff);
 const isCsUI=()=>!!(state&&state.staff&&state.staff.cs&&!state.isMaster);  // S7 CS팀 담당자 = 합동점검 메뉴만
@@ -17,14 +17,14 @@ function setupSMenu(){const on=isStaffUI(),cs=isCsUI();
  markSMenu();if(tab==='my'&&!/^MEET-/.test(LINK_REVIEW))setTimeout(()=>sgo(smenu),0)}
 function markSMenu(){if(!isStaffUI())return;document.querySelectorAll('.smb').forEach(b=>b.classList.toggle('active',b.id==='sm_'+smenu));$('pageTitle').textContent=SMENU[smenu]||''}
 /** 메뉴 이동 · 예전 메뉴 이름으로 부르면 대시보드 */
-function sgo(m){if(typeof setTopGuide==='function')setTopGuide('');if(!SMENU[m])m='dash';if(isCsUI())m='joint';if(typeof jtReset==='function'&&m!==smenu)jtReset();if(['tpl','staff','data','principal'].includes(m)&&!state.isMaster)m='dash';if(['stores','depts','items'].includes(m)&&!isSafetyUI())m='dash';if(typeof stReset==='function')stReset();if(typeof ckReset==='function')ckReset();smenu=m;toggleMenu(false);if(typeof stopScan==='function')stopScan();
+function sgo(m){if(typeof setTopGuide==='function')setTopGuide('');if(!SMENU[m])m='dash';if(isCsUI())m='joint';if(typeof jtReset==='function'&&m!==smenu)jtReset();if(typeof heReset==='function'&&m!==smenu)heReset();if(['tpl','staff','data','principal'].includes(m)&&!state.isMaster)m='dash';if(['stores','depts','items'].includes(m)&&!isSafetyUI())m='dash';if(typeof stReset==='function')stReset();if(typeof ckReset==='function')ckReset();smenu=m;toggleMenu(false);if(typeof stopScan==='function')stopScan();
  if(['tpl','staff','vendors'].includes(m)){switchTab(m);markSMenu();return}
  if(tab!=='jobs')switchTab('jobs');else loadJobs();markSMenu();window.scrollTo(0,0)}
 /** 알림 숫자 (showBadges에서 호출) · 업체 현황 = 가입 승인 대기 + 제출자료 검토 */
 function sBadges(b){if(!isStaffUI())return;b=b||{};const vd=(b.admin||0)+(b.review||0);setBadge($('sm_vendors'),vd);setBadge($('menuBtn'),vd)}
 /* ---------- 'jobs' 칸 화면 (메뉴별) ---------- */
 function renderJobs(){jobsMode='list';roomId='';clearInterval(roomTimer);const d=jobData;if(!d)return;if(typeof setTopGuide==='function')setTopGuide('');
- const H={flyer:sFlyer,dash:sDash,data:sData,principal:sPrincipal,stores:sStores,depts:sDepts,check:sChk,ca:sCa,co:sCo,joint:sJt,items:sItems}[smenu]||sDash;$('jobs').innerHTML=H(d)}
+ const H={flyer:sFlyer,dash:sDash,data:sData,principal:sPrincipal,stores:sStores,depts:sDepts,check:sChk,ca:sCa,co:sCo,joint:sJt,half:sHe,items:sItems}[smenu]||sDash;$('jobs').innerHTML=H(d)}
 /** 대시보드 (S1 최소) · S4에서 매장 점검 현황으로 바뀜 */
 function sDash(d){const B=(state&&state.badges)||{},me=(d&&d.me)||state.staff||{};
  const todo=[['vendors','가입 승인 대기',B.admin||0,'곳'],['vendors','제출자료 검토',B.review||0,'건']].filter(x=>x[2]>0)
