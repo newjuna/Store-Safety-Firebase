@@ -6,7 +6,7 @@
  * - 아직 옮기지 않은 기능은 '아직 Firebase로 옮기지 않은 기능' 안내
  */
 (function () {
-  const VERSION = '26.10.19 S4';
+  const VERSION = '26.10.19 S5';
   /* ---------- 기존 Code.gs와 같은 기준값 ---------- */
   /* F2.1 업종 '오픈지원' 추가 (매장 오픈 인력 · 인력사무소형) · 인테리어(마감) = 지금까지의 공사 흐름 그대로 */
   const CFG = {
@@ -774,6 +774,12 @@
   API.ckSave = async (a, c) => relay('ckSave', { json: JSON.stringify(c || {}) });
   API.ckGuide = async (a, part, id, kind, f) => relay('ckGuide', { part: tidy(part, 2), id: tidy(id, 30), kind: tidy(kind, 2), f: f && f.data ? f : null }, false, 120000);
   API.ckStart = async (a, week) => relay('ckStart', { week: tidy(week, 10) });
+  /* S5 시정요구서 (업체 · 본사) — 모두 중계 서버가 확인 */
+  API.vcList = async () => relay('vcList', {}, true);
+  API.vcFix = async (a, id, memo, ph) => relay('vcFix', { id: tidy(id, 60), memo: tidy(memo, 500), ph: ph && ph.data ? ph : null }, false, 120000);
+  API.vcPic = async (a, id, fid) => relay('vcPic', { id: tidy(id, 60), fid: tidy(fid, 80) }, true);
+  API.vcAll = async (a) => { await staffOnly(a); return relay('vcAll', {}, true); };
+  API.vcMail = async (a, id) => { await staffOnly(a); return relay('vcMail', { id: tidy(id, 60) }); };
   /** 점검 1장 보기 (본사 · 중계 서버가 매장 확인) */
   API.scDetail = async (a, store, id) => { await staffOnly(a); return relay('scDetail', { store: tidy(store, 12), id: tidy(id, 40) }, true); };
   /** 위임장 · 현장대리인계 보기 (중계 서버가 양식을 만들어 줌) */
