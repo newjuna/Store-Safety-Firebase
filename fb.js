@@ -6,7 +6,7 @@
  * - 아직 옮기지 않은 기능은 '아직 Firebase로 옮기지 않은 기능' 안내
  */
 (function () {
-  const VERSION = '26.10.19 S3';
+  const VERSION = '26.10.19 S4';
   /* ---------- 기존 Code.gs와 같은 기준값 ---------- */
   /* F2.1 업종 '오픈지원' 추가 (매장 오픈 인력 · 인력사무소형) · 인테리어(마감) = 지금까지의 공사 흐름 그대로 */
   const CFG = {
@@ -759,6 +759,23 @@
     audit(a, '', 'DEPT_SAVE', D.length + '개 부서 · ' + T.length + '개 팀');
     return API.storeBoard(a);
   };
+  /* ---------- S4 점장 점검 현황 (본사) ----------
+   *  WEEKSUM/{월요일} = { week, s: { 매장코드: {c 공통미흡, d 도급미흡, f 집중위험, r 등록일, l 밀린 주로 냄} } } · 주 1개 = 읽기 1번 */
+  API.checkBoard = async (a) => {
+    await staffOnly(a);
+    const [L, D, C] = await Promise.all([storeDoc('list'), storeDoc('depts'), db.collection('SETTINGS').doc('storeCheck').get().catch(() => null)]);
+    const thisWeek = (() => { const d = new Date(today() + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); })();
+    const start = (C && C.exists && C.data().startWeek) || thisWeek;
+    const W = {}; (await db.collection('WEEKSUM').where('week', '>=', start).get()).docs.forEach((d) => { const x = d.data(); if (x.week && x.week <= thisWeek) W[x.week] = x.s || {}; });
+    return { stores: storeRows(L).filter((r) => !r[4]), depts: (D && Array.isArray(D.depts) ? D.depts : []), teams: (D && Array.isArray(D.teams) ? D.teams : []).map((x) => [String((x && x.t) || ''), String((x && x.d) || '')]), start, thisWeek, weeks: W };
+  };
+  API.scCounts = async (a) => { await staffOnly(a); return relay('scCounts', {}, true); };
+  API.ckGet = async (a) => { await staffOnly(a); return relay('ckGet', {}, true); };
+  API.ckSave = async (a, c) => relay('ckSave', { json: JSON.stringify(c || {}) });
+  API.ckGuide = async (a, part, id, kind, f) => relay('ckGuide', { part: tidy(part, 2), id: tidy(id, 30), kind: tidy(kind, 2), f: f && f.data ? f : null }, false, 120000);
+  API.ckStart = async (a, week) => relay('ckStart', { week: tidy(week, 10) });
+  /** 점검 1장 보기 (본사 · 중계 서버가 매장 확인) */
+  API.scDetail = async (a, store, id) => { await staffOnly(a); return relay('scDetail', { store: tidy(store, 12), id: tidy(id, 40) }, true); };
   /** 위임장 · 현장대리인계 보기 (중계 서버가 양식을 만들어 줌) */
   API.jobPaper = async (a, jobId, kind, companyId) => relay('jobPaper', { jobId: tidy(jobId, 40), kind: tidy(kind, 10), companyId: tidy(companyId, 40) }, true);
   /** F1.8i [마스터] 데이터 현황 · 지우기 (중계 서버가 마스터인지 다시 확인) */
