@@ -6,7 +6,7 @@
  * - 아직 옮기지 않은 기능은 '아직 Firebase로 옮기지 않은 기능' 안내
  */
 (function () {
-  const VERSION = '26.10.19 S7';
+  const VERSION = '26.10.19 S8-1';
   /* ---------- 기존 Code.gs와 같은 기준값 ---------- */
   /* F2.1 업종 '오픈지원' 추가 (매장 오픈 인력 · 인력사무소형) · 인테리어(마감) = 지금까지의 공사 흐름 그대로 */
   const CFG = {
@@ -795,6 +795,16 @@
   API.csInvite = async (a, name) => relay('csInvite', { name: tidy(name, 30) });
   API.csCancel = async (a, token) => relay('csCancel', { token: tidy(token, 40) });
   API.csStop = async (a, email, on) => relay('csStop', { email: tidy(email, 120), on: !!on });
+  /* S8-1 협의체 회의 · 참석 (본사 · 업체) */
+  API.cmGet = async (a, id) => { await staffOnly(a); return relay('cmGet', { id: tidy(id, 7) }, true); };
+  API.cmSave = async (a, d) => relay('cmSave', { d: d || {} }, false, 180000);
+  API.cmMail = async (a, id) => relay('cmMail', { id: tidy(id, 7) }, false, 180000);
+  API.cmDel = async (a, id) => relay('cmDel', { id: tidy(id, 7) }, false, 180000);
+  API.cmStart = async (a, id) => relay('cmStart', { id: tidy(id, 7) });
+  API.cmAdd = async (a, id, name, companyId) => relay('cmAdd', { id: tidy(id, 7), name: tidy(name, 30), companyId: tidy(companyId, 60) });
+  API.cmDrop = async (a, id, i) => relay('cmDrop', { id: tidy(id, 7), i: Number(i) });
+  API.cmDone = async (a, id) => relay('cmDone', { id: tidy(id, 7) });
+  API.cmVList = async () => relay('cmVList', {}, true);
   /* S5 시정요구서 (업체 · 본사) — 모두 중계 서버가 확인 */
   API.vcList = async () => relay('vcList', {}, true);
   API.vcFix = async (a, id, memo, ph) => relay('vcFix', { id: tidy(id, 60), memo: tidy(memo, 500), ph: ph && ph.data ? ph : null }, false, 120000);
@@ -2375,7 +2385,7 @@
   async function redirectResult() { try { const r = await auth.getRedirectResult(); if (r && r.user) { USER = r.user; return true; } } catch (e) { return loginError(e); } return false; }
   /* S3 점장 (로그인 없음): 이 기기 익명 계정 · 이미 구글로 로그인돼 있으면 그 계정 그대로 · 모든 요청은 중계 서버가 확인 (SM_OPS_) */
   async function anon() { await ready; if (!auth.currentUser) await auth.signInAnonymously(); USER = auth.currentUser; return USER.uid; }
-  const SC_READ = new Set(['scStores', 'scHome', 'scForm', 'scHistory', 'scDetail', 'scPic', 'scGuide', 'scCouncils', 'scCouncil', 'jtQr']);
+  const SC_READ = new Set(['scStores', 'scHome', 'scForm', 'scHistory', 'scDetail', 'scPic', 'scGuide', 'scCouncils', 'scCouncil', 'jtQr', 'cmQr']);
   const sm = (op, body, waitMs) => relay(op, body || {}, SC_READ.has(op), waitMs);  // 제출 · 개선은 다시 보내지 않음 (두 번 저장 방지)
   window.FB = { ok: true, version: VERSION, ready, call, login, signIn, loginError, redirectResult, signOut: () => auth.signOut(), email: () => lower(USER && USER.email), anon, sm, _api: API };
 })();
