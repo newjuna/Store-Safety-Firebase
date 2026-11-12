@@ -3,7 +3,7 @@
  *  S2~ 매장 · 점장 점검 · 시정요구서 · 협의체 메뉴가 차례로 들어옴
  *  화면은 지금 'jobs' 칸에 그림 (loadJobs → renderJobs) */
 let smenu='dash',svData=null,svFilter='all';
-const SMENU={dash:'대시보드',flyer:'업체 안내문',vendors:'업체 현황',stores:'매장 목록',depts:'부서 관리',tpl:'표준양식 관리',staff:'조직도',data:'데이터 관리',principal:'도급인 책임자'};
+const SMENU={dash:'대시보드',flyer:'업체 안내문',vendors:'업체 현황',check:'점검 현황',items:'점검 항목',stores:'매장 목록',depts:'부서 관리',tpl:'표준양식 관리',staff:'조직도',data:'데이터 관리',principal:'도급인 책임자'};
 const isSafetyUI=()=>!!(state&&(state.isMaster||(state.staff&&state.staff.role==='SAFETY')));
 const isStaffUI=()=>!!(state&&state.staff);
 const kstToday=()=>new Date(Date.now()+9*3600e3).toISOString().slice(0,10);
@@ -16,19 +16,20 @@ function setupSMenu(){const on=isStaffUI();
  markSMenu();if(tab==='my'&&!/^MEET-/.test(LINK_REVIEW))setTimeout(()=>sgo(smenu),0)}
 function markSMenu(){if(!isStaffUI())return;document.querySelectorAll('.smb').forEach(b=>b.classList.toggle('active',b.id==='sm_'+smenu));$('pageTitle').textContent=SMENU[smenu]||''}
 /** 메뉴 이동 · 예전 메뉴 이름으로 부르면 대시보드 */
-function sgo(m){if(typeof setTopGuide==='function')setTopGuide('');if(!SMENU[m])m='dash';if(['tpl','staff','data','principal'].includes(m)&&!state.isMaster)m='dash';if(['stores','depts'].includes(m)&&!isSafetyUI())m='dash';if(typeof stReset==='function')stReset();smenu=m;toggleMenu(false);if(typeof stopScan==='function')stopScan();
+function sgo(m){if(typeof setTopGuide==='function')setTopGuide('');if(!SMENU[m])m='dash';if(['tpl','staff','data','principal'].includes(m)&&!state.isMaster)m='dash';if(['stores','depts','items'].includes(m)&&!isSafetyUI())m='dash';if(typeof stReset==='function')stReset();if(typeof ckReset==='function')ckReset();smenu=m;toggleMenu(false);if(typeof stopScan==='function')stopScan();
  if(['tpl','staff','vendors'].includes(m)){switchTab(m);markSMenu();return}
  if(tab!=='jobs')switchTab('jobs');else loadJobs();markSMenu();window.scrollTo(0,0)}
 /** 알림 숫자 (showBadges에서 호출) · 업체 현황 = 가입 승인 대기 + 제출자료 검토 */
 function sBadges(b){if(!isStaffUI())return;b=b||{};const vd=(b.admin||0)+(b.review||0);setBadge($('sm_vendors'),vd);setBadge($('menuBtn'),vd)}
 /* ---------- 'jobs' 칸 화면 (메뉴별) ---------- */
 function renderJobs(){jobsMode='list';roomId='';clearInterval(roomTimer);const d=jobData;if(!d)return;if(typeof setTopGuide==='function')setTopGuide('');
- const H={flyer:sFlyer,dash:sDash,data:sData,principal:sPrincipal,stores:sStores,depts:sDepts}[smenu]||sDash;$('jobs').innerHTML=H(d)}
+ const H={flyer:sFlyer,dash:sDash,data:sData,principal:sPrincipal,stores:sStores,depts:sDepts,check:sChk,items:sItems}[smenu]||sDash;$('jobs').innerHTML=H(d)}
 /** 대시보드 (S1 최소) · S4에서 매장 점검 현황으로 바뀜 */
 function sDash(d){const B=(state&&state.badges)||{},me=(d&&d.me)||state.staff||{};
  const todo=[['vendors','가입 승인 대기',B.admin||0,'곳'],['vendors','제출자료 검토',B.review||0,'건']].filter(x=>x[2]>0)
   .map(([m,t,n,u])=>'<button class="vtodo" type="button" onclick="sgo(\''+m+'\')"><span>'+escapeText(t)+'</span><span class="req">'+n+u+' ›</span></button>').join('');
  return '<div class="card"><h2 style="margin:0">'+escapeText(me.name||'')+' 님</h2><div class="muted">'+escapeText(kstToday())+'</div></div>'
+  +'<button class="vtodo" type="button" onclick="sgo(\'check\')"><span>점장 점검 현황</span><span>보기 ›</span></button>'
   +'<div class="card"><h2>처리할 일</h2>'+(todo||'<div class="note">처리할 일이 없습니다.</div>')+'</div>'}
 /* ---------- 업체 현황 (사업자 승인 + 제출자료 검토) ---------- */
 const SV_ST=b=>b.status==='PENDING'?['가입 승인 대기','bad','pending']:b.status==='REJECTED'?['반려','todo','etc']:b.renewAt&&b.submissionStatus!=='APPROVED'?(['SUBMITTED','SAFETY_REVIEW'].includes(b.submissionStatus)?['재평가 검토 중','bad','review']:['재평가 '+(b.submissionStatus==='CORRECTION'?'보완 요청':'작성 중'),'todo','draft']):b.submissionStatus==='APPROVED'&&b.valid&&b.valid.expired?['평가 만료','todo','draft']:({DRAFT:['서류 작성 중','todo','draft'],CORRECTION:['보완 요청','todo','draft'],SUBMITTED:['1차 검토 중','bad','review'],SAFETY_REVIEW:['확인 중','bad','review'],APPROVED:['승인 완료','ok','ok']}[b.submissionStatus||'DRAFT']||[b.submissionStatus,'todo','etc']);

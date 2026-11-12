@@ -59,7 +59,7 @@ async function shGo(v,arg){if(shV==='form'&&shDirty&&v!=='form'&&!await askOk('�
  toggleMenu(false);if(v!=='form'){shF=null;shDirty=false}shV=v;window.scrollTo(0,0);
  ({home:shHome,pick:shPickView,store:shStore,form:shFormOpen,hist:shHistView,detail:shDetail,fix:shFix,council:shCouncil}[v]||shHome)(arg)}
 /** 뒤로 (app.js backAction) */
-function shopBack(){if($('drawer')&&$('drawer').classList.contains('open'))return ()=>toggleMenu(false);const md=$('modal');if(md&&md.style.display==='flex')return ()=>{const c=$('modalCancel');(c&&!c.hidden?c:$('modalBtn')).click()};
+function shopBack(){if($('shGd'))return shGdClose;if($('drawer')&&$('drawer').classList.contains('open'))return ()=>toggleMenu(false);const md=$('modal');if(md&&md.style.display==='flex')return ()=>{const c=$('modalCancel');(c&&!c.hidden?c:$('modalBtn')).click()};
  if(shV==='form'&&shF&&shF.step>0)return ()=>shStep(shF.step-1);if(shV==='form')return ()=>shGo('store',shF&&shF.code);if(shV==='detail')return ()=>shGo('hist');if(shV==='pick'&&!shPicked().length)return null;if(shV!=='home')return ()=>shGo('home');return null}
 
 /* ---------- 매장 고르기 ---------- */
@@ -115,11 +115,11 @@ function shFormDraw(){const F=shF.F,i=shF.step,S=shSteps();shMark(shF.s.n+' · '
  h+='<div class="shfoot">'+(i>0?'<button class="button ghost" type="button" onclick="shStep('+(i-1)+')">이전</button>':'')+(i<2?'<button class="button" type="button" onclick="shNext()">다음</button>':'<button class="button" type="button" onclick="shSubmit()">제출</button>')+'</div>';
  shEl().innerHTML=h}
 function shGrpHtml(p,g,M){const x=shGrpSt(M,g.id),bad=x.st==='P',k=p+'_'+g.id;
- return '<div class="shgrp'+(bad?' bad':'')+'" id="sg_'+k+'"><b>'+escapeText(g.name)+'</b><div class="shtg"><button type="button" class="'+(x.st==='G'?'ok':'')+'" aria-pressed="'+(x.st==='G')+'" onclick="shSet(\''+p+'\',\''+g.id+'\',\'G\')">양호</button><button type="button" class="'+(bad?'bad':'')+'" aria-pressed="'+bad+'" onclick="shSet(\''+p+'\',\''+g.id+'\',\'P\')">미흡</button></div>'
+ return '<div class="shgrp'+(bad?' bad':'')+'" id="sg_'+k+'">'+shGdHead(g.name,g)+'<div class="shtg"><button type="button" class="'+(x.st==='G'?'ok':'')+'" aria-pressed="'+(x.st==='G')+'" onclick="shSet(\''+p+'\',\''+g.id+'\',\'G\')">양호</button><button type="button" class="'+(bad?'bad':'')+'" aria-pressed="'+bad+'" onclick="shSet(\''+p+'\',\''+g.id+'\',\'P\')">미흡</button></div>'
   +(bad?g.items.map(it=>'<label class="shck"><input type="checkbox" '+(x.items.includes(it.id)?'checked':'')+' onchange="shItem(\''+p+'\',\''+g.id+'\',\''+escapeText(it.id)+'\',this.checked)"><span>'+escapeText(it.t)+'</span></label>').join('')
    +'<textarea class="shinp" id="sm_'+k+'" placeholder="미흡 내용" oninput="shMemo(\''+p+'\',\''+g.id+'\',this.value)">'+escapeText(x.memo)+'</textarea>'+shCamHtml(p,g.id,x):'')+'</div>'}
 function shFocHtml(it){const x=shGrpSt(shF.f,it.id),bad=x.st==='R',k='f_'+it.id;
- return '<div class="shgrp'+(bad?' bad':'')+'" id="sg_'+k+'"><b>'+escapeText(it.t)+'</b>'+(it.d?'<div class="muted">'+escapeText(it.d)+'</div>':'')+'<div class="shtg"><button type="button" class="'+(x.st==='S'?'ok':'')+'" aria-pressed="'+(x.st==='S')+'" onclick="shSet(\'f\',\''+it.id+'\',\'S\')">안전</button><button type="button" class="'+(bad?'bad':'')+'" aria-pressed="'+bad+'" onclick="shSet(\'f\',\''+it.id+'\',\'R\')">위험</button></div>'
+ return '<div class="shgrp'+(bad?' bad':'')+'" id="sg_'+k+'">'+shGdHead(it.t,it)+(it.d?'<div class="muted">'+escapeText(it.d)+'</div>':'')+'<div class="shtg"><button type="button" class="'+(x.st==='S'?'ok':'')+'" aria-pressed="'+(x.st==='S')+'" onclick="shSet(\'f\',\''+it.id+'\',\'S\')">안전</button><button type="button" class="'+(bad?'bad':'')+'" aria-pressed="'+bad+'" onclick="shSet(\'f\',\''+it.id+'\',\'R\')">위험</button></div>'
   +(bad?'<textarea class="shinp" id="sm_'+k+'" placeholder="위험 내용" oninput="shMemo(\'f\',\''+it.id+'\',this.value)">'+escapeText(x.memo)+'</textarea>'+shCamHtml('f',it.id,x):'')+'</div>'}
 const shCamHtml=(p,id,x)=>'<label class="shcam'+(x.url?' has':'')+'" id="sc_'+p+'_'+id+'">'+(x.url?'<img src="'+x.url+'" alt="사진">':'<svg viewBox="0 0 24 24">'+SH_ICONS.cam+'</svg>사진')+'<input type="file" accept="image/*" aria-label="사진" onchange="shPh(\''+p+'\',\''+id+'\',this)"></label>';
 const shMap=p=>p==='c'?shF.c:p==='d'?shF.d.g:shF.f;
@@ -146,6 +146,16 @@ async function shSubmit(){for(let i=0;i<3;i++){const L=shMiss(i);if(L.length){if
  const code=shF.code;
  try{const o=await shCall('scSubmit',body);shDirty=false;shLS.del(SH_HOME);msg('제출했습니다.'+(o.dPoor?' (도급 미흡 '+o.dPoor+')':''));shGo('home')}
  catch(e){if(/이미 제출/.test((e&&e.message)||'')){shDirty=false;shLS.del(SH_HOME);shGo('home')}}}
+
+/* ---------- S4 가이드 사진 (본사가 올린 양호 · 미흡 예시) ---------- */
+const shGdHead=(name,g)=>'<div class="vh-top" style="align-items:center"><b>'+escapeText(name)+'</b>'+(g.gg||g.gb?'<button type="button" class="linkbtn" style="font-size:13px" onclick="shGuide(\''+escapeText(g.gg||'')+'\',\''+escapeText(g.gb||'')+'\',\''+escapeText(name).replace(/\'/g,'')+'\')">가이드</button>':'')+'</div>';
+const shGdMem={};
+function shGuide(gg,gb,name){shGdClose();const el=document.createElement('div');el.id='shGd';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.style.cssText='position:fixed;inset:0;background:#0009;z-index:9000;display:flex;align-items:center;justify-content:center;padding:14px';
+ el.onclick=e=>{if(e.target===el)shGdClose()};const box=(k,fid,t)=>fid?'<div style="margin-top:10px"><span class="shpill'+(k==='G'?' ok':' no')+'">'+t+'</span><img id="shGd'+k+'" class="shpic" alt="'+t+' 예시"></div>':'';
+ el.innerHTML='<div class="card" style="max-width:460px;width:100%;margin:0;max-height:92vh;overflow:auto"><div class="vh-top" style="align-items:center"><h2 style="margin:0;font-size:16px">'+escapeText(name)+'</h2><button class="button ghost" type="button" onclick="shGdClose()">닫기</button></div>'+box('G',gg,'양호')+box('B',gb,'미흡')+'</div>';document.body.appendChild(el);
+ [['G',gg],['B',gb]].forEach(([k,fid])=>{if(!fid)return;const put=u=>{const i=$('shGd'+k);if(i)i.src=u};if(shGdMem[fid]){put(shGdMem[fid]);return}
+  FB.sm('scGuide',{fid}).then(r=>{shGdMem[fid]='data:'+r.mime+';base64,'+r.data;put(shGdMem[fid])}).catch(()=>{const i=$('shGd'+k);if(i)i.alt='사진을 불러오지 못했습니다'})})}
+function shGdClose(){$('shGd')?.remove()}
 
 /* ---------- 미흡 개선 ---------- */
 const shPicMem={};
@@ -174,19 +184,22 @@ async function shHistView(code){shV='hist';shMark('점검 이력');const P=shPic
  try{shHist=await shCall('scHistory',{store:code})}catch(e){return}if(shV!=='hist')return;const L=shHist.list||[];
  $('shHistBox').innerHTML=L.length?L.map(w=>{const bad=(w.cPoor||0)+(w.dPoor||0)+(w.fRisk||0);return '<button class="shli" type="button" onclick="shGo(\'detail\',\''+escapeText(w.id)+'\')">'+shIc('cal')+'<span class="t"><b>'+shWk(w.week)+'</b><span class="muted">등록 '+shW(w.regDate)+(w.company?' · '+escapeText(w.company):'')+'</span></span>'+(bad?'<span class="shpill'+(w.open?' no':'')+'">미흡 '+bad+(w.open?' · 미조치 '+w.open:'')+'</span>':'<span class="shpill ok">양호</span>')+'</button>'}).join(''):'<p class="muted" style="margin:0">아직 없습니다.</p>'}
 async function shDetail(id){shMark('점검 이력');const code=shHist&&shHist.store.c;if(!code){shGo('hist');return}shEl().innerHTML='<div class="card"><p class="muted">불러오는 중…</p></div>';
- try{shDet=await shCall('scDetail',{store:code,id})}catch(e){shGo('hist');return}if(shV!=='detail')return;const d=shDet,fx=d.fix||{},pics=[];
+ try{shDet=await shCall('scDetail',{store:code,id})}catch(e){shGo('hist');return}if(shV!=='detail')return;
+ const o=shDetailHtml(shDet,'shGo(\'hist\')','← 점검 이력');shEl().innerHTML=o.html;o.pics.forEach(([k,fid,ref])=>shPicLoad(k,code,ref,fid))}
+/** 점검 1장 화면 (점장 이력 · 본사 현황 같이 씀) → {html, pics:[[img id, 사진 ID, 기록 ID]]} */
+function shDetailHtml(d,backFn,backTxt){shCss();const fx=d.fix||{},pics=[];
  const row=(x,bad,name)=>{if(!bad)return '';const f=fx[x.g||x.id]||{},k='shp'+pics.length;if(x.ph)pics.push([k,x.ph,(f.id||d.id)]);
   return '<div class="shgrp bad"><div class="vh-top" style="align-items:center"><b>'+escapeText(name)+'</b>'+(f.status==='DONE'?'<span class="shpill ok">조치 '+escapeText(String(f.fixAt||'').slice(5,10).replace('-','.'))+'</span>':'<span class="shpill no">미조치</span>')+'</div>'
    +((x.items||[]).length?'<div class="muted" style="margin-top:6px">'+x.items.map(i=>'· '+escapeText(i.t||i)).join('<br>')+'</div>':'')+(x.memo?'<p style="margin:6px 0 0">'+escapeText(x.memo)+'</p>':'')+(x.ph?'<img id="'+k+'" class="shpic" alt="사진">':'')
    +(f.status==='DONE'&&f.fixMemo?'<p class="muted" style="margin:6px 0 0">개선: '+escapeText(f.fixMemo)+'</p>':'')+'</div>'};
  const sec=(t,L,isBad,nm,cnt)=>'<div class="card" style="padding:12px 14px"><div class="vh-top" style="align-items:center"><h2 style="margin:0;font-size:16px">'+t+'</h2><span class="muted">'+cnt+'</span></div></div>'+L.map(x=>row(x,isBad(x),nm(x))).join('');
  const C=d.common||[],D=(d.contract&&d.contract.groups)||[],Fo=(d.focus&&d.focus.items)||[];
- shEl().innerHTML='<div class="card"><button class="button ghost" type="button" onclick="shGo(\'hist\')">← 점검 이력</button><h2 style="margin:12px 0 0">'+escapeText(d.storeName)+' · '+shWk(d.week)+'</h2><div class="muted">등록일 '+shW(d.regDate)+(d.late?' · 밀린 주':'')+'</div>'
+ const html='<div class="card"><button class="button ghost" type="button" onclick="'+backFn+'">'+escapeText(backTxt)+'</button><h2 style="margin:12px 0 0">'+escapeText(d.storeName)+' · '+shWk(d.week)+'</h2><div class="muted">등록일 '+shW(d.regDate)+(d.late?' · 밀린 주':'')+'</div>'
   +'<div class="shsum"><div class="'+(d.cPoor?'r':'')+'"><b>'+(d.cPoor||0)+'</b><span>공통 미흡</span></div><div class="'+(d.dPoor?'r':'')+'"><b>'+(d.contract&&d.contract.has?(d.dPoor||0):'–')+'</b><span>도급 미흡</span></div><div class="'+(d.fRisk?'r':'')+'"><b>'+(d.fRisk||0)+'</b><span>집중 위험</span></div></div></div>'
   +sec('공통',C,x=>x.st==='P',x=>x.n,'양호 '+C.filter(x=>x.st==='G').length+' / '+C.length)
   +(d.contract&&d.contract.has?sec('도급 · '+escapeText(d.contract.company||''),D,x=>x.st==='P',x=>x.n,'양호 '+D.filter(x=>x.st==='G').length+' / '+D.length):'<div class="card" style="padding:12px 14px"><span class="muted">도급 · 입고도우미 작업 없음</span></div>')
   +sec(escapeText((d.focus&&d.focus.month)+'월 '+((d.focus&&d.focus.name)||'')),Fo,x=>x.st==='R',x=>x.t,'안전 '+Fo.filter(x=>x.st==='S').length+' / '+Fo.length);
- pics.forEach(([k,fid,ref])=>shPicLoad(k,code,ref,fid))}
+ return {html,pics}}
 
 /* ---------- 협의체 결과 (S6에서 채움) ---------- */
 function shCouncil(){shMark('협의체 결과');shEl().innerHTML='<div class="card"><p class="muted" style="margin:0">아직 없습니다.</p></div>'}
