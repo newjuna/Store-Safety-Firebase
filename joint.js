@@ -209,6 +209,6 @@ async function jtCsiView(tok){const el=$('my'),e=escapeText,T=e(tok);try{await F
 async function jtCsiLogin(tok){try{const r=await FB.signIn();if(r==='redirect')return;await new Promise(ok=>setTimeout(ok,300));jtCsiView(tok)}catch(e){msg(FB.loginError(e))}}
 async function jtCsiOther(tok){try{await FB.signOut()}catch(e){}jtCsiView(tok)}
 async function jtCsiJoin(tok){const n=($('jtName').value||'').trim();if(!n){inspFlag(['jtName'],'이름');return}loadStart('csJoin');
- try{const r=await FB.sm('csJoin',{token:tok,name:n});$('my').innerHTML=jtCard('등록되었습니다','<p class="desc">'+escapeText(r.name)+' 님, 이제 앱에서 <b>[다이소 담당자]</b>로 로그인하면 「합동점검」 화면이 열립니다.</p><button class="button" type="button" style="width:100%" onclick="jtCsiOpen()">앱 열기</button>')}
+ try{const r=await FB.sm('csJoin',{token:tok,name:n});$('my').innerHTML=jtCard('등록되었습니다','<p class="desc">'+escapeText(r.name)+' 님, 이제 앱에서 이 Google 계정으로 로그인하면 「합동점검」 화면이 열립니다.</p><button class="button" type="button" style="width:100%" onclick="jtCsiOpen()">앱 열기</button>')}
  catch(e){msg((e&&e.message)||'등록하지 못했습니다.')}finally{loadEnd()}}
-function jtCsiOpen(){try{localStorage.setItem('loginMode','STAFF');localStorage.removeItem('shopMode')}catch(e){}location.href=location.pathname}
+function jtCsiOpen(){try{localStorage.removeItem('shopMode')}catch(e){}location.href=location.pathname}

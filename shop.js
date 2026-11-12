@@ -7,7 +7,7 @@ const SH_KEY='shopStores',SH_FLAG='shopMode',SH_HOME='shopHome',SH_ALL='shopAll'
 const shLS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},del:k=>{try{localStorage.removeItem(k)}catch(e){}}};
 const shPicked=()=>shLS.get(SH_KEY,[]).filter(s=>s&&s.c);
 /** 점장 화면으로 열지: 주소에 ?store 가 있거나, 이 기기에서 점장 화면을 쓰고 있고 직원·업체 로그인이 없을 때 */
-function shopWanted(){if(new URLSearchParams(location.search).has('store'))return true;try{return localStorage.getItem(SH_FLAG)==='1'&&!(typeof SESSION!=='undefined'&&SESSION)}catch(e){return false}}
+function shopWanted(){const p=new URLSearchParams(location.search);if(p.has('store')){const k=String(p.get('store')||'').replace(/[^a-z0-9]/gi,'').slice(0,20);if(k){try{localStorage.setItem('shopKey',k)}catch(e){}}return true}/* 점장 주소 코드 (…/?store=코드) 를 이 기기에 기억 */try{return localStorage.getItem(SH_FLAG)==='1'&&!(typeof SESSION!=='undefined'&&SESSION)}catch(e){return false}}
 /* ---------- 모양 ---------- */
 const SH_ICONS={home:'<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/><path d="M10 19.5v-5h4v5"/>',store:'<path d="M4 9.5 5.5 4.5h13L20 9.5"/><path d="M4 9.5c0 1.4 1.1 2.5 2.7 2.5s2.6-1.1 2.6-2.5c0 1.4 1.1 2.5 2.7 2.5s2.7-1.1 2.7-2.5c0 1.4 1 2.5 2.6 2.5S20 10.9 20 9.5"/><path d="M5.5 12v7.5h13V12"/><path d="M10 19.5v-4h4v4"/>',
  clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',doc:'<path d="M6.5 3.5h7l4 4v13h-11z"/><path d="M13.5 3.5v4h4"/><path d="M9 12h6M9 15.5h6"/>',swap:'<path d="M4.5 9h13l-3.5-3.5"/><path d="M19.5 15h-13l3.5 3.5"/>',

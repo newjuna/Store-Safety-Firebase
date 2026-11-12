@@ -100,11 +100,11 @@ function fyHtml(v,base){const B=base||'';
  +'<span class="fyMpin" style="right:-2mm;top:12mm">2</span><span class="fyMpin" style="left:-2.4mm;bottom:3mm">3</span></div>'
  +'</div><ol class="fySl"><li><i>1</i><span>아래 <b>⋯ (더보기)</b> → <b>공유 ⬆</b></span></li><li><i>2</i><span><b>「더 보기 ⌄」</b>로 메뉴 펼치기</span></li><li><i>3</i><span><b>「홈 화면에 추가」</b> → <b>「추가」</b></span></li></ol></div>'
  +'</div><div class="fyNote" style="margin-top:2mm">💬 카톡 · 문자에서 링크를 열었으면 먼저 「다른 브라우저로 열기」 (안드로이드 = 「인터넷」 · 아이폰 = Safari)</div></div></div>'
- +'<div class="fySt"><h2><i>3</i>로그인 → 사업자 등록 신청</h2><div class="fyLg"><div class="fyPh"><div class="fyLb"><div class="fyLbr"><i></i>도급 안전관리</div><h4>로그인</h4><p class="fyLs">접속 구분을 고른 뒤 Google 계정으로 로그인하세요.</p><div class="fySeg"><span class="on">협력업체</span><span>다이소 담당자</span><span class="fyPin fyPinL">1</span></div>'
- +'<div class="fyG"><svg viewBox="0 0 48 48" width="13" height="13" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.8 6C12.4 13.7 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.8c4.3-4 6.9-9.9 6.9-17.2z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.3.8-4.7l-7.8-6C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.8-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.8c-2.1 1.4-4.8 2.3-8.5 2.3-6.3 0-11.6-4.2-13.5-10l-7.8 6C6.6 42.6 14.6 48 24 48z"/></svg>Google 계정으로 로그인<span class="fyPin fyPinL">2</span></div></div>'
+ +'<div class="fySt"><h2><i>3</i>로그인 → 사업자 등록 신청</h2><div class="fyLg"><div class="fyPh"><div class="fyLb"><div class="fyLbr"><i></i>도급 안전관리</div><h4>로그인</h4><p class="fyLs">Google 계정으로 로그인하세요.</p>'
+ +'<div class="fyG"><svg viewBox="0 0 48 48" width="13" height="13" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.8 6C12.4 13.7 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.8c4.3-4 6.9-9.9 6.9-17.2z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.3.8-4.7l-7.8-6C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.8-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.8c-2.1 1.4-4.8 2.3-8.5 2.3-6.3 0-11.6-4.2-13.5-10l-7.8 6C6.6 42.6 14.6 48 24 48z"/></svg>Google 계정으로 로그인<span class="fyPin fyPinL">1</span></div></div>'
  +'<div style="position:absolute;left:0;right:0;bottom:-6.4mm;text-align:center;font-size:8pt;color:#6b7280">▲ 실제 앱 첫 화면</div></div>'
- +'<div class="fyS3w"><div class="fyS3"><b class="n">1</b><div><b>「협력업체」</b>를 누르기<small>「다이소 담당자」는 누르지 마세요</small></div></div><div class="fyS3"><b class="n">2</b><div><b>「Google 계정으로 로그인」</b><small>이 계정이 우리 업체 대표 계정이 됩니다 (현장대리인이 계속 쓸 계정)</small></div></div>'
- +'<div class="fyS3"><b class="n">3</b><div>첫 화면에서 <b>사업자 등록 신청</b><small>업체명 · 사업자번호 · 대표자 · 주소 · 현장대리인 · 업종 · (사업자등록증 사진)</small></div></div>'
+ +'<div class="fyS3w"><div class="fyS3"><b class="n">1</b><div><b>「Google 계정으로 로그인」</b><small>이 계정이 우리 업체 대표 계정이 됩니다 (현장대리인이 계속 쓸 계정)</small></div></div>'
+ +'<div class="fyS3"><b class="n">2</b><div>첫 화면에서 <b>사업자 등록 신청</b><small>업체명 · 사업자번호 · 대표자 · 주소 · 현장대리인 · 업종 · (사업자등록증 사진)</small></div></div>'
  +'<div class="fyOnly">⚠ <b>Google 아이디(Gmail)로만</b> 로그인됩니다.<br>네이버 · 카카오 · 다음 계정은 안 됩니다. Gmail이 없으면 먼저 만들어 주세요. (무료)</div></div></div></div>'
  +'<div class="fySt hot"><h2><i>4</i>중요 · 다이소 담당자 이메일은 이렇게 적어 주세요</h2><div class="fyMail"><div class="l">사업자 등록 신청서의 「다이소 담당자 이메일」 칸에 그대로 적어 주세요</div><div class="em">'+escapeText(v.email||'(조직도에 회사메일 없음)')+'</div><div class="p">담당 <b>'+escapeText(v.who)+'</b></div></div></div></div>'
  +'<div class="fyFt"><span>문의 · <b>'+escapeText(v.contact)+'</b></span><span>아성다이소 도급 안전관리</span></div></div>'}
@@ -135,3 +135,32 @@ async function fyExport(mode){if(fyBusy)return;if(!fyForm().date){inspFlag(['f_f
 function fyPdf(){if(!fyForm().date){inspFlag(['f_fyDate'],'준비 기한 날짜를 먼저 골라 주세요');return}const w=window.open('','_blank');if(!w){msg('팝업이 막혔습니다. 팝업을 허용해 주세요.');return}
  const base=location.href.replace(/[?#].*$/,'').replace(/[^/]*$/,'');
  w.document.write('<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>다이소 업체 안내문</title><style>@page{size:A4;margin:0}html,body{margin:0}'+$('fyCss').textContent+'</style></head><body>'+fyHtml(fyVals(),base)+'<script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>');w.document.close()}
+
+/* ---------- [담당자] 점장 안내문 (…/?store=코드 · QR · A4) ----------
+ *  도급인 담당자 · 안전보건팀이 만들어 매장에 보냄 (업체 안내문과 같은 방식) · [새 주소 만들기] = 예전 주소는 못 씀
+ *  서버: Relay shopKeyGet · shopKeyNew · 점장 요청(sc…)은 중계 서버가 코드 확인 */
+let skI=null;
+const skUrl=k=>location.origin+location.pathname+'?store='+k;
+const skQr=(u,px)=>'https://api.qrserver.com/v1/create-qr-code/?size='+(px||260)+'x'+(px||260)+'&margin=8&data='+encodeURIComponent(u);
+async function skLoad(){try{skI=await call('shopKeyGet')}catch(e){skI={err:(e&&e.message)||'불러오지 못했습니다.'}}if(tab==='jobs'&&smenu==='shopfly')renderJobs()}
+function sShopFly(){if(typeof jtCss==='function')jtCss();const e=escapeText;if(!skI){skLoad();return '<div class="card"><h2>점장 안내문</h2><p class="muted">불러오는 중입니다…</p></div>'}
+ if(skI.err){const m=skI.err;skI=null;return '<div class="card"><h2>점장 안내문</h2><p class="muted">'+e(m)+'</p><button class="button" type="button" onclick="renderJobs()">다시 시도</button></div>'}
+ if(!skI.key)return '<div class="card"><h2 style="margin:0">점장 안내문</h2><p class="muted" style="margin:8px 0 0">매장 점장에게 보내는 점검 앱 주소 · QR입니다. 아직 만들지 않았습니다.<br>지금은 예전 주소(…/?store)로도 들어올 수 있으니, 만들어서 매장에 보내 주세요.</p><button class="button" type="button" style="width:100%;margin-top:12px" onclick="skNew()">점장 주소 만들기</button></div>';
+ const u=skUrl(skI.key);
+ return '<div class="card"><h2 style="margin:0">점장 안내문</h2><p class="muted" style="margin:6px 0 0">매장 점장에게만 보내 주세요. 업체에는 보내지 않습니다.</p>'
+  +'<div style="text-align:center;margin-top:10px"><img class="jtqr" alt="점장 점검 QR" src="'+skQr(u)+'"><div class="muted" style="word-break:break-all">'+e(u)+'</div></div>'
+  +'<div class="row" style="gap:6px;margin-top:10px"><button class="button" type="button" style="flex:1" onclick="copyLink(\''+e(u)+'\')">링크 복사</button><button class="button ghost" type="button" style="flex:1" onclick="skPaper()">안내문 보기 · 인쇄</button></div>'
+  +'<button class="button ghost" type="button" style="width:100%;margin-top:8px" onclick="skNew()">새 주소 만들기</button>'
+  +'<p class="muted" style="margin:8px 0 0">만든 날 '+e(fmtTime(skI.at))+(skI.by?' · '+e(skI.by):'')+' · 주소가 밖으로 퍼졌으면 [새 주소 만들기] (예전 주소는 바로 못 씀 · 매장에 새 안내문을 다시 보내야 함)</p></div>'}
+async function skNew(){const has=skI&&skI.key;if(!await askOk(has?'새 주소 만들기':'점장 주소 만들기',has?'지금 점장 주소 · QR은 더 이상 쓸 수 없습니다.\n모든 매장에 새 안내문을 다시 보내야 합니다.\n\n새로 만들까요?':'점장 주소를 만들까요?\n만들면 예전 주소(…/?store)로는 들어올 수 없습니다.','만들기'))return;
+ try{skI=await call('shopKeyNew');renderJobs();msg('만들었습니다. 매장에 안내문을 보내 주세요.')}catch(e){}}
+function skPaper(){if(!skI||!skI.key)return;const e=escapeText,u=skUrl(skI.key);$('skDocDlg')?.remove();const el=document.createElement('div');el.id='skDocDlg';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.style.cssText='position:fixed;inset:0;background:#0009;z-index:9000;overflow:auto;padding:14px';el.onclick=ev=>{if(ev.target===el)el.remove()};
+ el.innerHTML='<div style="max-width:720px;margin:0 auto"><div class="row" style="justify-content:flex-end;margin-bottom:8px"><button class="button" type="button" onclick="printA4(\'skDocBody\',\'점장 매장 점검 안내\')">인쇄</button><button class="button ghost" type="button" onclick="$(\'skDocDlg\').remove()">닫기</button></div>'
+  +'<div id="skDocBody" class="jtdoc"><h1>매장 안전 점검 앱 안내 (점장)</h1>'
+  +'<div style="text-align:center;margin:10px 0 14px"><img src="'+skQr(u,320)+'" alt="QR" style="width:200px;height:200px"><div style="font-family:Consolas,monospace;font-size:13px;margin-top:6px;word-break:break-all">'+e(u)+'</div></div>'
+  +'<table><tr><th>1</th><td><b>휴대폰 카메라로 위 QR 찍기</b> (또는 주소 입력) · 로그인 없음</td></tr>'
+  +'<tr><th>2</th><td><b>내 매장 고르기</b> · 처음 한 번만 (여러 매장이면 모두)</td></tr>'
+  +'<tr><th>3</th><td><b>매주 순회점검</b> · 공통 → 도급(입고 작업) → 이번 달 집중 · 미흡이면 사진</td></tr>'
+  +'<tr><th>4</th><td><b>홈 화면에 추가</b>하면 다음부터 바로 열림 (안드로이드 = 「인터넷」 앱 · 아이폰 = Safari)</td></tr></table>'
+  +'<div class="law">이 주소는 <b>매장 직원끼리만</b> 쓰세요. 협력업체 · 외부에 보내지 마세요. 주소가 바뀌면 새 안내문을 다시 보내 드립니다.</div>'
+  +'<div style="text-align:right;margin-top:16px">(주)아성다이소 · 만든 날 '+e(String(skI.at||'').slice(0,10))+'</div></div></div>';document.body.appendChild(el)}
