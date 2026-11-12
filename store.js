@@ -30,12 +30,15 @@ function sStores(){stCss();if(!stB){stLoad();return stWait('매장 목록')}if(s
  return '<div class="card"><div class="vh-top"><h2 style="margin:0">매장 목록</h2>'+(ed?'<button class="button'+(stPaste?' ghost':'')+'" type="button" onclick="stPasteTg()">'+(stPaste?'닫기':'붙여넣기로 반영')+'</button>':'')+'</div>'
   +'<div class="muted">'+(stB.at?'반영 '+escapeText(fmtTime(stB.at))+' · '+escapeText(stB.by||''):'아직 반영한 목록이 없습니다')+'</div>'
   +'<div class="stnum"><div><b>'+A.length+'</b><span>영업</span></div><div><b>'+by('직영점')+'</b><span>직영점</span></div><div><b>'+by('유통점')+'</b><span>유통점</span></div><div><b>'+by('유통행사')+'</b><span>유통행사</span></div></div>'
-  +(gone?'<div class="muted" style="margin-top:6px">목록에 없음 '+gone+'곳</div>':'')+'</div>'
+  +(gone?'<div class="muted" style="margin-top:6px">목록에 없음 '+gone+'곳</div>':'')
+  +'<div class="row" style="margin-top:10px;justify-content:space-between"><span class="muted">점장 링크 · '+escapeText(stShopUrl())+'</span><button class="button ghost" type="button" onclick="copyLink(stShopUrl())">복사</button></div></div>'
   +(stPaste&&ed?'<div class="card"><h2>붙여넣기</h2><p class="muted" style="margin:0 0 8px">엑셀에서 제목 줄(매장 · 매장명 · 지역 · 형태 · 폐점여부)부터 복사해 붙여넣으세요.</p><textarea id="stText" class="stpaste" spellcheck="false" aria-label="매장 목록 붙여넣기"></textarea><button class="button" type="button" style="width:100%;margin-top:8px" onclick="stPreview()">미리보기</button></div>':'')
   +(noD?'<button class="vtodo" type="button" onclick="sgo(\'depts\')"><span>부서 미지정 팀</span><span class="req">'+noD+'팀 ›</span></button>':'')
   +(stB.stores.length?'<div class="card"><div class="stbar"><input id="stQ" type="search" placeholder="매장명 · 코드" value="'+escapeText(stQ)+'" oninput="stQ=this.value;stFind()" aria-label="매장 찾기">'
    +'<select id="stTeam" onchange="stTeam=this.value;stFind()" aria-label="팀"><option value="">전체 팀</option>'+T.map(x=>'<option'+(x.t===stTeam?' selected':'')+'>'+escapeText(x.t)+'</option>').join('')+'</select>'
    +'<select id="stKind" onchange="stKind=this.value;stFind()" aria-label="형태"><option value="">전체 형태</option>'+ST_TYPES.concat(['목록에 없음']).map(k=>'<option'+(k===stKind?' selected':'')+'>'+k+'</option>').join('')+'</select></div><div id="stRes">'+stResHtml()+'</div></div>':'')}
+/** S3 점장 공통 링크 (로그인 없이 매장 고르고 점검) */
+const stShopUrl=()=>location.origin+location.pathname+'?store';
 function stPasteTg(){stPaste=!stPaste;renderJobs();if(stPaste)setTimeout(()=>$('stText')?.focus(),50)}
 function stResHtml(){const q=stNorm(stQ).toLowerCase(),L=stB.stores.filter(s=>(!q||stNorm(s[1]).toLowerCase().includes(q)||String(s[0]).includes(q))&&(!stTeam||s[2]===stTeam)&&(!stKind||(stKind==='목록에 없음'?s[4]:!s[4]&&s[3]===stKind)));
  if(!L.length)return '<p class="muted" style="margin:10px 0 0">없음</p>';
