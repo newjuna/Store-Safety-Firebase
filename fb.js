@@ -6,7 +6,7 @@
  * - 아직 옮기지 않은 기능은 '아직 Firebase로 옮기지 않은 기능' 안내
  */
 (function () {
-  const VERSION = '26.10.19 S2';
+  const VERSION = '26.10.19 S3';
   /* ---------- 기존 Code.gs와 같은 기준값 ---------- */
   /* F2.1 업종 '오픈지원' 추가 (매장 오픈 인력 · 인력사무소형) · 인테리어(마감) = 지금까지의 공사 흐름 그대로 */
   const CFG = {
@@ -2329,5 +2329,9 @@
   }
   /** 화면 이동 방식으로 로그인하고 돌아온 경우 */
   async function redirectResult() { try { const r = await auth.getRedirectResult(); if (r && r.user) { USER = r.user; return true; } } catch (e) { return loginError(e); } return false; }
-  window.FB = { ok: true, version: VERSION, ready, call, login, signIn, loginError, redirectResult, signOut: () => auth.signOut(), email: () => lower(USER && USER.email), _api: API };
+  /* S3 점장 (로그인 없음): 이 기기 익명 계정 · 이미 구글로 로그인돼 있으면 그 계정 그대로 · 모든 요청은 중계 서버가 확인 (SM_OPS_) */
+  async function anon() { await ready; if (!auth.currentUser) await auth.signInAnonymously(); USER = auth.currentUser; return USER.uid; }
+  const SC_READ = new Set(['scStores', 'scHome', 'scForm', 'scHistory', 'scDetail', 'scPic']);
+  const sm = (op, body, waitMs) => relay(op, body || {}, SC_READ.has(op), waitMs);  // 제출 · 개선은 다시 보내지 않음 (두 번 저장 방지)
+  window.FB = { ok: true, version: VERSION, ready, call, login, signIn, loginError, redirectResult, signOut: () => auth.signOut(), email: () => lower(USER && USER.email), anon, sm, _api: API };
 })();
