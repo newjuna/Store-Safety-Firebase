@@ -6,7 +6,7 @@
  * - 아직 옮기지 않은 기능은 '아직 Firebase로 옮기지 않은 기능' 안내
  */
 (function () {
-  const VERSION = '26.10.19 S6';
+  const VERSION = '26.10.19 S7';
   /* ---------- 기존 Code.gs와 같은 기준값 ---------- */
   /* F2.1 업종 '오픈지원' 추가 (매장 오픈 인력 · 인력사무소형) · 인테리어(마감) = 지금까지의 공사 흐름 그대로 */
   const CFG = {
@@ -511,7 +511,7 @@
     }
     return {
       email: a.email, isApprover, correctionNote: b && b.submissionStatus === 'CORRECTION' ? b.correctionNote || '' : '', openJobs: V ? V.openJobs : null,
-      staff: st ? { name: st.name, role: st.role, roleLabel: (st.master ? '마스터 · ' : '') + (STAFF_ROLES[st.role] || st.role), master: !!st.master,
+      staff: st ? { name: st.name, role: st.role, cs: st.cs === 'Y' && st.role !== 'SAFETY' /* S7 CS팀 담당자 = 합동점검만 */, roleLabel: (st.master ? '마스터 · ' : '') + (STAFF_ROLES[st.role] || st.role), master: !!st.master,
         /* F2.6 볼 수 있는 화면: 마스터 · 안전보건팀 = 둘 다 (들어갈 때 고름) · 그 외 = 조직도 담당 (비어 있으면 인테리어) */
         scopes: st.master || st.role === 'SAFETY' ? Object.keys(SCOPES) : (cleanScopes(st.scopes).length ? cleanScopes(st.scopes) : ['INT']), scopeLabels: SCOPES } : null,
       isMaster: isMaster(a), testSkipFiles: CFG.TEST_SKIP_FILES,
@@ -779,6 +779,22 @@
   API.coGet = async (a, id) => { await staffOnly(a); return relay('coGet', { id: tidy(id, 7) }, true); };
   API.coMake = async (a, id) => relay('coMake', { id: tidy(id, 7) }, false, 180000);
   API.coMail = async (a, id) => relay('coMail', { id: tidy(id, 7) }, false, 180000);
+  /* S7 합동점검 (본사 · CS팀 · 업체) — 모두 중계 서버가 확인 */
+  API.jtBoard = async (a, quarter) => { await staffOnly(a); return relay('jtBoard', { quarter: tidy(quarter, 7) }, true); };
+  API.jtSave = async (a, d) => relay('jtSave', { d: d || {} });
+  API.jtDel = async (a, id) => relay('jtDel', { id: tidy(id, 40) });
+  API.jtMail = async (a, id) => relay('jtMail', { id: tidy(id, 40) });
+  API.jtGet = async (a, id) => relay('jtGet', { id: tidy(id, 40) }, true);
+  API.jtStart = async (a, id) => relay('jtStart', { id: tidy(id, 40) });
+  API.jtAdd = async (a, id, name, side) => relay('jtAdd', { id: tidy(id, 40), name: tidy(name, 30), side: tidy(side, 6) });
+  API.jtDrop = async (a, id, i) => relay('jtDrop', { id: tidy(id, 40), i: Number(i) });
+  API.jtDone = async (a, id, groups) => relay('jtDone', { id: tidy(id, 40), groups: Array.isArray(groups) ? groups.slice(0, 120) : [] }, false, 240000);
+  API.jtPic = async (a, id, fid) => relay('jtPic', { id: tidy(id, 40), fid: tidy(fid, 80) }, true);
+  API.jtVList = async () => relay('jtVList', {}, true);
+  API.jtVPerson = async (a, id, name) => relay('jtVPerson', { id: tidy(id, 40), name: tidy(name, 30) });
+  API.csInvite = async (a, name) => relay('csInvite', { name: tidy(name, 30) });
+  API.csCancel = async (a, token) => relay('csCancel', { token: tidy(token, 40) });
+  API.csStop = async (a, email, on) => relay('csStop', { email: tidy(email, 120), on: !!on });
   /* S5 시정요구서 (업체 · 본사) — 모두 중계 서버가 확인 */
   API.vcList = async () => relay('vcList', {}, true);
   API.vcFix = async (a, id, memo, ph) => relay('vcFix', { id: tidy(id, 60), memo: tidy(memo, 500), ph: ph && ph.data ? ph : null }, false, 120000);
@@ -2359,7 +2375,7 @@
   async function redirectResult() { try { const r = await auth.getRedirectResult(); if (r && r.user) { USER = r.user; return true; } } catch (e) { return loginError(e); } return false; }
   /* S3 점장 (로그인 없음): 이 기기 익명 계정 · 이미 구글로 로그인돼 있으면 그 계정 그대로 · 모든 요청은 중계 서버가 확인 (SM_OPS_) */
   async function anon() { await ready; if (!auth.currentUser) await auth.signInAnonymously(); USER = auth.currentUser; return USER.uid; }
-  const SC_READ = new Set(['scStores', 'scHome', 'scForm', 'scHistory', 'scDetail', 'scPic', 'scGuide', 'scCouncils', 'scCouncil']);
+  const SC_READ = new Set(['scStores', 'scHome', 'scForm', 'scHistory', 'scDetail', 'scPic', 'scGuide', 'scCouncils', 'scCouncil', 'jtQr']);
   const sm = (op, body, waitMs) => relay(op, body || {}, SC_READ.has(op), waitMs);  // 제출 · 개선은 다시 보내지 않음 (두 번 저장 방지)
   window.FB = { ok: true, version: VERSION, ready, call, login, signIn, loginError, redirectResult, signOut: () => auth.signOut(), email: () => lower(USER && USER.email), anon, sm, _api: API };
 })();
