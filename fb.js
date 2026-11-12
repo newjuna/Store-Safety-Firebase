@@ -6,7 +6,7 @@
  * - 아직 옮기지 않은 기능은 '아직 Firebase로 옮기지 않은 기능' 안내
  */
 (function () {
-  const VERSION = '26.10.19 S8-3';
+  const VERSION = '26.10.19 S8-4';
   /* ---------- 기존 Code.gs와 같은 기준값 ---------- */
   /* F2.1 업종 '오픈지원' 추가 (매장 오픈 인력 · 인력사무소형) · 인테리어(마감) = 지금까지의 공사 흐름 그대로 */
   const CFG = {
@@ -270,7 +270,8 @@
   const fail = (m) => { throw Error(m); };
   /* F1.7f 접속 구분이 비어 있으면(예전에 작업자 QR로 로그인한 기기) 로그인 화면에서 마지막으로 고른 구분을 씀
    *  → 직원 명단에 있는 사람이 [협력업체]로 쓰다가 작업자 QR을 한 번 찍은 뒤 업체 업무가 직원 기준으로 처리되던 문제 */
-  const getMode = () => { try { const m = localStorage.getItem('fbMode') || localStorage.getItem('loginMode') || ''; return ['VENDOR', 'STAFF'].includes(m) ? m : ''; } catch (e) { return ''; } };
+  /* S8-3 접속 구분 없앰: 늘 '' → 직원 명단에 있으면 담당자 · 없으면 협력업체 (fb.js · 중계 서버 모두 계정만 보고 판단) */
+  const getMode = () => '';
   async function me() {
     await ready;
     if (!USER) fail('로그인이 만료되었습니다. 다시 로그인해 주세요.');
@@ -823,6 +824,9 @@
   API.hePlanOk = async (a, id) => relay('hePlanOk', { id: tidy(id, 80) });
   API.heMine = async () => relay('heMine', {}, true);
   API.hePlan = async (a, id, text) => relay('hePlan', { id: tidy(id, 80), text: tidy(text, 2000) });
+  /* 점장 주소 코드 (도급인 담당자 · 안전보건팀) */
+  API.shopKeyGet = async (a) => { await staffOnly(a); return relay('shopKeyGet', {}, true); };
+  API.shopKeyNew = async (a) => { await staffOnly(a); return relay('shopKeyNew', {}); };
   /* S5 시정요구서 (업체 · 본사) — 모두 중계 서버가 확인 */
   API.vcList = async () => relay('vcList', {}, true);
   API.vcFix = async (a, id, memo, ph) => relay('vcFix', { id: tidy(id, 60), memo: tidy(memo, 500), ph: ph && ph.data ? ph : null }, false, 120000);
@@ -2404,6 +2408,8 @@
   /* S3 점장 (로그인 없음): 이 기기 익명 계정 · 이미 구글로 로그인돼 있으면 그 계정 그대로 · 모든 요청은 중계 서버가 확인 (SM_OPS_) */
   async function anon() { await ready; if (!auth.currentUser) await auth.signInAnonymously(); USER = auth.currentUser; return USER.uid; }
   const SC_READ = new Set(['scStores', 'scHome', 'scForm', 'scHistory', 'scDetail', 'scPic', 'scGuide', 'scCouncils', 'scCouncil', 'jtQr', 'cmQr', 'wrInfo']);
-  const sm = (op, body, waitMs) => relay(op, body || {}, SC_READ.has(op), waitMs);  // 제출 · 개선은 다시 보내지 않음 (두 번 저장 방지)
+  /* 점장 주소 코드 (…/?store=코드 · 처음 들어올 때 이 기기에 기억) 를 같이 보냄 · 중계 서버가 확인 */
+  const shopKey = () => { try { return localStorage.getItem('shopKey') || ''; } catch (e) { return ''; } };
+  const sm = (op, body, waitMs) => relay(op, { ...(body || {}), key: shopKey() }, SC_READ.has(op), waitMs);  // 제출 · 개선은 다시 보내지 않음 (두 번 저장 방지)
   window.FB = { ok: true, version: VERSION, ready, call, login, signIn, loginError, redirectResult, signOut: () => auth.signOut(), email: () => lower(USER && USER.email), anon, sm, _api: API };
 })();
