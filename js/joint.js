@@ -51,13 +51,13 @@ function jtMineHtml(M,full){const t=(jtB&&jtB.today)||kstToday(),e=escapeText,up
 /** S8-9 CS 담당자 = 조직도 「CS팀」 구성원 중 로그인 Gmail 있는 사람 (여기서는 명단만 · 추가 · 고치기는 조직도) · 담당자 밑에 이번 분기 맡은 합동점검 */
 function jtCsHtml(){const B=jtB,e=escapeText,ed=B.canEdit,t=B.today,L=B.list||[];
  const kids=c=>L.filter(x=>String(x.csEmail).toLowerCase()===String(c.email).toLowerCase());
- return '<div class="card"><div class="vh-top" style="align-items:center"><h2 style="margin:0">CS 담당자</h2><span class="muted">조직도 CS팀에서 관리</span></div>'
+ return '<div class="card"><div class="vh-top" style="align-items:center"><h2 style="margin:0">CS 담당자</h2><span class="muted">조직도 「CS 담당」에서 관리</span></div>'
   +B.csList.map(c=>{const K=kids(c),off=c.status==='STOP';
    return '<div class="jtwho"'+(off?' style="opacity:.6"':'')+'><span class="jtav">'+e((c.name||'?').slice(0,1))+'</span><span class="t"><b>'+e(c.name)+'</b> <span class="muted">'+e(c.email)+(c.org?'':' · 예전 직접 등록')+'</span></span><span class="shpill">'+K.length+'건</span>'
     +(ed&&!c.org?'<button type="button" class="shpill '+(off?'':'ok')+'" style="border:0;cursor:pointer" onclick="jtCsStop(\''+e(c.email)+'\','+off+')">'+(off?'중지':'사용')+'</button>':off?'<span class="shpill">중지</span>':'')+'</div>'
     +(K.length?'<div style="border-left:2px solid var(--line);margin-left:13px;padding-left:12px">'+K.map(x=>{const [s,cl]=jtSt(x,t);return '<button class="shli" type="button" onclick="jtOpen(\''+e(x.id)+'\')">'+shIc('cal',cl==='no')+'<span class="t"><b>'+e(x.storeName+' · '+jtD(x.date))+'</b><span class="muted">'+e(x.company)+'</span></span><span class="shpill '+cl+'">'+s+'</span></button>'}).join('')+'</div>':'')}).join('')
-  +(!B.csList.length?'<p class="muted" style="margin:8px 0 0">아직 없습니다. 조직도의 「CS팀」에 사람을 넣고 로그인 Gmail을 적으면 여기에 나옵니다.</p>':'')
-  +'<p class="muted" style="margin:8px 0 0">조직도 「CS팀」 구성원 중 로그인 Gmail이 있는 사람 · 그 Gmail로 로그인하면 「합동점검」 화면만 열립니다.'+(state.isMaster?' <button type="button" class="linkbtn" onclick="sgo(\'staff\')">조직도 열기</button>':'')+'</p></div>'}
+  +(!B.csList.length?'<p class="muted" style="margin:8px 0 0">아직 없습니다. 조직도에서 사람을 눌러 「CS 담당」을 켜면 여기에 나옵니다. (로그인 Gmail 필요)</p>':'')
+  +'<p class="muted" style="margin:8px 0 0">조직도에서 「CS 담당」을 켠 사람 · 그 Gmail로 로그인하면 「합동점검」 화면만 열립니다.'+(state.isMaster?' <button type="button" class="linkbtn" onclick="sgo(\'staff\')">조직도 열기</button>':'')+'</p></div>'}
 async function jtCsAdd(){const n=($('jtCsN').value||'').trim(),m=($('jtCsE').value||'').trim().toLowerCase(),miss=[];if(!n)miss.push('jtCsN');if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m))miss.push('jtCsE');if(miss.length){inspFlag(miss,miss.length>1?'이름 · Gmail':n?'Gmail':'이름');return}
  try{const r=await call('csAdd',n,m);jtB={...jtB,csList:r.csList,invites:r.invites};renderJobs();msg(n+' 님을 등록했습니다. 이 Gmail로 로그인하면 됩니다.')}catch(e){}}
 async function jtInvite(){const n=prompt('CS팀 담당자 이름');if(n===null)return;if(!n.trim()){msg('이름을 적어 주세요.');return}
