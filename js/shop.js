@@ -99,7 +99,10 @@ function shStore(code){const s=shH&&shH.stores.find(x=>x.c===code);if(!s){shGo('
 /* ---------- 점검표 ---------- */
 async function shFormOpen(arg){const {code,week}=arg||{};shMark('');shEl().innerHTML='<div class="card"><p class="muted">점검표를 여는 중…</p></div>';let r;
  try{r=await shCall('scForm',{store:code,week})}catch(e){shV='store';shStore(code);return}if(shV!=='form')return;
- shF={code,week,s:r.store,regDate:r.regDate,late:r.late,F:r.form,V:r.vendors||[],step:0,c:{},d:{has:false,companyId:'',g:{}},f:{}};shDirty=false;window.__wkCo=r.store.n;shFormDraw()}
+ shF={code,week,s:r.store,regDate:r.regDate,late:r.late,F:r.form,V:r.vendors||[],step:0,c:{},d:{has:false,companyId:'',g:{}},f:{}};
+ /* S8-8 처음부터 공통 = 양호 · 월별 집중 = 안전 (도급은 「입고 작업 있음」을 누를 때 양호) */
+ r.form.common.forEach(g=>{shGrpSt(shF.c,g.id).st='G'});r.form.focus.items.forEach(it=>{shGrpSt(shF.f,it.id).st='S'});
+ shDirty=false;window.__wkCo=r.store.n;shFormDraw()}
 const shSteps=()=>['공통','도급',shF.F.focus.month+'월 집중'];
 const shGrpSt=(M,id)=>M[id]||(M[id]={st:'',items:[],memo:'',ph:null,url:''});
 function shFormDraw(){const F=shF.F,i=shF.step,S=shSteps();shMark(shF.s.n+' · '+shW(shF.week)+' 주');
@@ -113,7 +116,7 @@ function shFormDraw(){const F=shF.F,i=shF.step,S=shSteps();shMark(shF.s.n+' · '
   if(D.has)h+=F.contract.map(g=>shGrpHtml('d',g,D.g)).join('')}
  if(i===2){h+='<div class="card" style="padding:12px 14px"><h2 style="margin:0;font-size:16px">'+escapeText(F.focus.name)+'</h2></div>'+F.focus.items.map(x=>shFocHtml(x)).join('')}
  h+='<div class="shfoot">'+(i>0?'<button class="button ghost" type="button" onclick="shStep('+(i-1)+')">이전</button>':'')+(i<2?'<button class="button" type="button" onclick="shNext()">다음</button>':'<button class="button" type="button" onclick="shSubmit()">제출</button>')+'</div>';
- shEl().innerHTML=h}
+ shEl().innerHTML=h+shJump()}
 function shGrpHtml(p,g,M){const x=shGrpSt(M,g.id),bad=x.st==='P',k=p+'_'+g.id;
  return '<div class="shgrp'+(bad?' bad':'')+'" id="sg_'+k+'">'+shGdHead(g.name,g)+'<div class="shtg"><button type="button" class="'+(x.st==='G'?'ok':'')+'" aria-pressed="'+(x.st==='G')+'" onclick="shSet(\''+p+'\',\''+g.id+'\',\'G\')">양호</button><button type="button" class="'+(bad?'bad':'')+'" aria-pressed="'+bad+'" onclick="shSet(\''+p+'\',\''+g.id+'\',\'P\')">미흡</button></div>'
   +(bad?g.items.map(it=>'<label class="shck"><input type="checkbox" '+(x.items.includes(it.id)?'checked':'')+' onchange="shItem(\''+p+'\',\''+g.id+'\',\''+escapeText(it.id)+'\',this.checked)"><span>'+escapeText(it.t)+'</span></label>').join('')
@@ -128,7 +131,9 @@ function shSet(p,id,st){const x=shGrpSt(shMap(p),id);x.st=st;shDirty=true;shRedr
 function shItem(p,id,it,on){const x=shGrpSt(shMap(p),id);x.items=on?[...new Set(x.items.concat(it))]:x.items.filter(v=>v!==it);shDirty=true;$('sg_'+p+'_'+id)?.classList.remove('miss')}
 function shMemo(p,id,v){shGrpSt(shMap(p),id).memo=v;shDirty=true}
 async function shPh(p,id,inp){const f=inp.files&&inp.files[0];if(!f)return;try{const r=await readFile(f,PHOTO_STAMP);const x=shGrpSt(shMap(p),id);x.ph=r;x.url='data:'+r.mime+';base64,'+r.data;shDirty=true;shRedrawGrp(p,id)}catch(e){msg((e&&e.message)||'사진을 읽지 못했습니다.')}}
-function shHas(on){shF.d.has=!!on;shDirty=true;shFormDraw()}
+function shHas(on){shF.d.has=!!on;if(on)shF.F.contract.forEach(g=>{const x=shGrpSt(shF.d.g,g.id);if(!x.st)x.st='G'});shDirty=true;shFormDraw()}
+/* S8-8 점검표 오른쪽 아래 맨 위로 · 맨 아래로 */
+const shJump=()=>'<style>.shjump{position:fixed;right:10px;bottom:150px;display:flex;flex-direction:column;gap:8px;z-index:20}.shjump button{width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:#fffffff0;box-shadow:0 2px 8px #0002;display:grid;place-items:center;cursor:pointer}.shjump svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}</style><div class="shjump"><button type="button" aria-label="맨 위로" onclick="window.scrollTo({top:0,behavior:\'smooth\'})"><svg viewBox="0 0 24 24"><path d="m6 14 6-6 6 6"/></svg></button><button type="button" aria-label="맨 아래로" onclick="window.scrollTo({top:document.body.scrollHeight,behavior:\'smooth\'})"><svg viewBox="0 0 24 24"><path d="m6 10 6 6 6-6"/></svg></button></div>';
 /** 단계별 빠진 칸 → [요소 id, 안내] */
 function shMiss(i){const F=shF.F,L=[],grp=(p,G,M,good,bad)=>G.forEach(g=>{const x=M[g.id]||{},k=p+'_'+g.id,nm=g.name||g.t;if(!x.st)L.push(['sg_'+k,nm+' · '+good+' / '+bad]);else if(x.st===(p==='f'?'R':'P')){if(p!=='f'&&!x.items.length)L.push(['sg_'+k,nm+' · 문항']);if(!String(x.memo||'').trim())L.push(['sm_'+k,nm+' · 내용']);if(!x.ph)L.push(['sc_'+k,nm+' · 사진'])}});
  if(i===0)grp('c',F.common,shF.c,'양호','미흡');
@@ -141,8 +146,9 @@ async function shSubmit(){for(let i=0;i<3;i++){const L=shMiss(i);if(L.length){if
  const pack=(G,M)=>G.map(g=>{const x=M[g.id];return x.st==='P'?{g:g.id,st:'P',items:x.items,memo:x.memo.trim(),ph:x.ph}:{g:g.id,st:'G'}}),F=shF.F;
  const body={store:shF.code,week:shF.week,common:pack(F.common,shF.c),contract:shF.d.has?{has:true,companyId:shF.d.companyId,groups:pack(F.contract,shF.d.g)}:{has:false},
   focus:F.focus.items.map(it=>{const x=shF.f[it.id];return x.st==='R'?{id:it.id,st:'R',memo:x.memo.trim(),ph:x.ph}:{id:it.id,st:'S'}})};
- const n=[].concat(body.common,body.contract.groups||[]).filter(x=>x.st==='P').length,r=body.focus.filter(x=>x.st==='R').length;
- if(!await askOk('제출',shF.s.n+' · '+shWk(shF.week)+'\n미흡 '+n+' · 위험 '+r+'\n\n제출할까요?','제출'))return;
+ const nc=body.common.filter(x=>x.st==='P').length,nd=(body.contract.groups||[]).filter(x=>x.st==='P').length,r=body.focus.filter(x=>x.st==='R').length;
+ /* S8-8 처음부터 양호로 체크돼 있으니 제출 전에 건수를 한 번 더 보여 줌 */
+ if(!await askOk('제출',shF.s.n+' · '+shWk(shF.week)+'\n\n- 공통 미흡 '+nc+'건\n- 도급 미흡 '+(body.contract.has?nd+'건':'입고 작업 없음')+'\n- 월별 점검 미흡 '+r+'건'+(nc+nd+r?'':'\n\n모두 양호로 제출합니다.')+'\n\n제출할까요?','제출'))return;
  const code=shF.code;
  try{const o=await shCall('scSubmit',body);shDirty=false;shLS.del(SH_HOME);msg('제출했습니다.'+(o.dPoor?' (도급 미흡 '+o.dPoor+')':''));shGo('home')}
  catch(e){if(/이미 제출/.test((e&&e.message)||'')){shDirty=false;shLS.del(SH_HOME);shGo('home')}}}

@@ -97,9 +97,9 @@ function sDepts(){stCss();if(!stB){return stWait('부서 관리')}if(!dpEdit)dpI
   +(stB.deptAt?'<div class="muted">저장 '+escapeText(fmtTime(stB.deptAt))+'</div>':'')
   +E.depts.map((d,i)=>'<div class="dprow"><input value="'+escapeText(d.name)+'" placeholder="부서 이름" aria-label="부서 이름" oninput="dpName('+i+',this.value)"'+dis+'><span class="muted" style="white-space:nowrap">'+E.map.filter(x=>x===d.id).length+'팀</span>'+(ed?'<button class="button ghost" type="button" onclick="dpDel('+i+')" aria-label="부서 삭제">삭제</button>':'')+'</div>').join('')
   +(ed?'<button class="button ghost" type="button" style="width:100%;margin-top:6px" onclick="dpAdd()">＋ 부서 추가</button>':'')+'</div>'
-  +'<div class="card"><div class="vh-top"><h2 style="margin:0">팀 → 부서 · 담당자 메일</h2>'+(noD?'<span class="pill bad">미지정 '+noD+'</span>':'')+'</div>'
-  +'<p class="muted" style="margin:4px 0 0">담당자 메일 = 「매장 점검」 [팀에 알림 메일]을 받는 회사메일 (비우면 그 팀은 안 보냄)</p>'
-  +(E.teams.length?'<table class="rtable sttb" style="margin-top:10px"><tr><th>팀</th><th>매장</th><th>부서</th><th>담당자 메일</th></tr>'+order.map(i=>'<tr'+(E.cnt[i]?'':' class="stgone"')+'><td>'+escapeText(E.teams[i])+'</td><td class="c">'+E.cnt[i]+'</td><td><select class="dpsel'+(!E.map[i]&&E.cnt[i]?' no':'')+'" aria-label="'+escapeText(E.teams[i])+' 부서" onchange="dpTeam('+i+',this.value)"'+dis+'>'+opt(E.map[i])+'</select></td>'
+  +'<div class="card"><div class="vh-top"><h2 style="margin:0">팀 → 부서 · 팀장 메일</h2>'+(noD?'<span class="pill bad">미지정 '+noD+'</span>':'')+'</div>'
+  +'<p class="muted" style="margin:4px 0 0">팀장 메일 = 「매장 점검」 [팀장에게 Teams 알림]을 받는 회사메일 (비우면 그 팀은 안 보냄)</p>'
+  +(E.teams.length?'<table class="rtable sttb" style="margin-top:10px"><tr><th>팀</th><th>매장</th><th>부서</th><th>팀장 메일</th></tr>'+order.map(i=>'<tr'+(E.cnt[i]?'':' class="stgone"')+'><td>'+escapeText(E.teams[i])+'</td><td class="c">'+E.cnt[i]+'</td><td><select class="dpsel'+(!E.map[i]&&E.cnt[i]?' no':'')+'" aria-label="'+escapeText(E.teams[i])+' 부서" onchange="dpTeam('+i+',this.value)"'+dis+'>'+opt(E.map[i])+'</select></td>'
    +'<td><input class="dpsel" type="email" placeholder="이름@daiso.co.kr" value="'+escapeText(E.mail[i]||'')+'" aria-label="'+escapeText(E.teams[i])+' 담당자 메일" oninput="dpMail('+i+',this.value)"'+dis+'></td></tr>').join('')+'</table>'
    :'<p class="muted" style="margin:10px 0 0">매장 목록을 먼저 반영하면 팀이 나옵니다.</p>')+'</div>'
   +(ed?'<div class="card roomfoot"><button class="button" type="button" style="width:100%" onclick="dpSave()"'+(E.dirty?'':' disabled')+'>저장</button></div>':'')}
@@ -111,7 +111,7 @@ async function dpDel(i){const d=dpEdit.depts[i],n=dpEdit.map.filter(x=>x===d.id)
 function dpTeam(i,v){dpEdit.map[i]=v;dpDirty(true)}
 function dpReset(){dpEdit=null;renderJobs()}
 async function dpSave(){const E=dpEdit,names=E.depts.map(d=>d.name.trim());if(names.some(n=>!n)){msg('이름이 빈 부서가 있습니다.');return}if(new Set(names).size!==names.length){msg('같은 부서 이름이 있습니다.');return}
- const bad=E.teams.filter((t,i)=>E.mail[i]&&!/^[^\s@]+@daiso\.co\.kr$/i.test(E.mail[i]));if(bad.length){msg('담당자 메일은 회사메일(@daiso.co.kr)만 쓸 수 있습니다: '+bad.slice(0,3).join(', '));return}
+ const bad=E.teams.filter((t,i)=>E.mail[i]&&!/^[^\s@]+@daiso\.co\.kr$/i.test(E.mail[i]));if(bad.length){msg('팀장 메일은 회사메일(@daiso.co.kr)만 쓸 수 있습니다: '+bad.slice(0,3).join(', '));return}
  try{stB=await call('deptSave',E.depts.map(d=>({id:d.id,name:d.name.trim()})),E.teams.map((t,i)=>[t,E.map[i],E.mail[i]||'']).filter(x=>x[1]||x[2]));dpEdit=null;renderJobs();msg('저장했습니다.')}catch(e){}}
 /** 다른 메뉴로 갈 때 (staff.js sgo) · 작성 중이던 미리보기 · 부서 고침은 버림 */
 function stReset(){stPv=null;stPaste=false;dpEdit=null}
