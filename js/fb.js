@@ -6,7 +6,7 @@
  * - 아직 옮기지 않은 기능은 '아직 Firebase로 옮기지 않은 기능' 안내
  */
 (function () {
-  const VERSION = '26.11.13 S8-18';
+  const VERSION = '26.11.13 S8-19';
   /* ---------- 기존 Code.gs와 같은 기준값 ---------- */
   /* F2.1 업종 '오픈지원' 추가 (매장 오픈 인력 · 인력사무소형) · 인테리어(마감) = 지금까지의 공사 흐름 그대로 */
   const CFG = {
@@ -718,12 +718,14 @@
     const T = units.filter((u) => names.has(u.name));
     if (!T.length) return false;
     /* S8-16 예전 부서 관리 메일을 이어 쓰던 부분 뺌 → 팀장 = 지금 조직도에 직책 「팀장」 + 회사메일로 있는 사람만 (없으면 빈칸 = 안 보냄) */
-    const DU = new Map(), teams = [], seen = new Set();
-    T.forEach((u) => {
-      if (seen.has(u.name)) return; seen.add(u.name);
+    const DU = new Map(), teams = [], byName = new Map();
+    T.forEach((u) => { if (!byName.has(u.name)) byName.set(u.name, []); byName.get(u.name).push(u); });
+    const bossOf = (u) => mem.find((m) => memLeads(m, units).includes(u.id) && m.companyEmail && isInternalEmail(m.companyEmail));  // S8-18 팀장 스위치 (겸직 포함)
+    /* S8-19 같은 이름 팀 조직이 여러 개면 (예: 예전 부서 관리에서 옮긴 것 + 새로 만든 것) 팀장이 있는 쪽 → 사람이 있는 쪽 → 첫 번째 */
+    byName.forEach((Us, name) => {
+      const u = Us.find((x) => bossOf(x)) || Us.find((x) => mem.some((m) => m.unitId === x.id)) || Us[0], boss = bossOf(u);
       const p = units.find((x) => x.id === u.parent); if (p) DU.set(p.id, p.name);
-      const boss = mem.find((m) => memLeads(m, units).includes(u.id) && m.companyEmail && isInternalEmail(m.companyEmail));  // S8-18 팀장 스위치 (겸직 포함)
-      teams.push({ t: u.name, d: p ? p.id : '', m: boss ? lower(boss.companyEmail) : '' });
+      teams.push({ t: name, d: p ? p.id : '', m: boss ? lower(boss.companyEmail) : '' });
     });
     const depts = [...DU].map(([id, name]) => ({ id, name }));
     /* S8-12 바뀐 게 없으면 안 씀 (조직도를 열 때마다 맞추므로) */
