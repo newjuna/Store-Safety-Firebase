@@ -6,7 +6,7 @@
  * - 아직 옮기지 않은 기능은 '아직 Firebase로 옮기지 않은 기능' 안내
  */
 (function () {
-  const VERSION = '26.10.19 S8-7';
+  const VERSION = '26.11.13 S8-8';
   /* ---------- 기존 Code.gs와 같은 기준값 ---------- */
   /* F2.1 업종 '오픈지원' 추가 (매장 오픈 인력 · 인력사무소형) · 인테리어(마감) = 지금까지의 공사 흐름 그대로 */
   const CFG = {
@@ -786,7 +786,7 @@
     const T = [], tseen = new Set();
     (Array.isArray(teams) ? teams : []).slice(0, 2000).forEach((x) => {
       const t = tidy(x && x[0], 40), id = String((x && x[1]) || ''), m = lower(tidy(x && x[2], 120));  // S8-7 m = 팀 담당자 회사메일 (미제출 알림)
-      if (m && !isInternalEmail(m)) fail(t + ' 담당자 메일은 회사메일(@' + CFG.APPROVER_DOMAINS.join(', @') + ')만 쓸 수 있습니다.');
+      if (m && !isInternalEmail(m)) fail(t + ' 팀장 메일은 회사메일(@' + CFG.APPROVER_DOMAINS.join(', @') + ')만 쓸 수 있습니다.');
       if (t && (ids.has(id) || m) && !tseen.has(t)) { tseen.add(t); T.push({ t, d: ids.has(id) ? id : '', m }); } });
     await db.collection('STORES').doc('depts').set({ depts: D, teams: T, at: now(), by: a.email });
     audit(a, '', 'DEPT_SAVE', D.length + '개 부서 · ' + T.length + '개 팀');
