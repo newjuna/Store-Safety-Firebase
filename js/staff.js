@@ -9,22 +9,23 @@ const SM_PARENT={flyer:'vendors',shopfly:'check',items:'settings',stores:'settin
 const isSafetyUI=()=>!!(state&&(state.isMaster||(state.staff&&state.staff.role==='SAFETY')));
 const isStaffUI=()=>!!(state&&state.staff);
 const isCsUI=()=>!!(state&&state.staff&&state.staff.cs&&!state.isMaster);  // S7 CS팀 담당자 = 합동점검 메뉴만
+const isTeamUI=()=>!!(state&&state.staff&&state.staff.role==='TEAM'&&!state.isMaster);  // S8-23 소속만 보기 (팀장 · 파트장 · 부서장) = 매장 점검 메뉴만
 const kstToday=()=>new Date(Date.now()+9*3600e3).toISOString().slice(0,10);
 const sum=(l,f)=>l.reduce((s,x)=>s+(Number(f(x))||0),0);
 function sNone(t){return '<div class="card"><p class="desc">'+t+'</p></div>'}
 /** 메뉴 보이기 (display 때마다) · 관리 메뉴는 마스터만 */
-function setupSMenu(){const on=isStaffUI(),cs=isCsUI();
- document.querySelectorAll('.smb').forEach(b=>b.classList.toggle('hidden',!on||(cs&&b.id!=='sm_joint')||(b.dataset.master==='1'&&!state.isMaster)||(b.dataset.safety==='1'&&!isSafetyUI())));
+function setupSMenu(){const on=isStaffUI(),cs=isCsUI(),tm=isTeamUI();
+ document.querySelectorAll('.smb').forEach(b=>b.classList.toggle('hidden',!on||(cs&&b.id!=='sm_joint')||(tm&&b.id!=='sm_check')||(b.dataset.master==='1'&&!state.isMaster)||(b.dataset.safety==='1'&&!isSafetyUI())));
  if(typeof smIcons==='function')smIcons();
- if(!on)return;if(cs)smenu='joint';if(smenu==='shopfly')smenu='check';['myTab','adminTab','reviewTab','tplTab','jobsTab','staffTab'].forEach(id=>$(id)&&$(id).classList.add('hidden'));
+ if(!on)return;if(cs)smenu='joint';if(tm)smenu='check';if(smenu==='shopfly')smenu='check';['myTab','adminTab','reviewTab','tplTab','jobsTab','staffTab'].forEach(id=>$(id)&&$(id).classList.add('hidden'));
  markSMenu();if(tab==='my'&&!/^MEET-/.test(LINK_REVIEW))setTimeout(()=>sgo(smenu),0)}
 function markSMenu(){if(!isStaffUI())return;const p=SM_PARENT[smenu]||smenu;document.querySelectorAll('.smb').forEach(b=>b.classList.toggle('active',b.id==='sm_'+p));$('pageTitle').textContent=SMENU[smenu]||''}
 /** 메뉴 이동 · 예전 메뉴 이름으로 부르면 대시보드 */
-function sgo(m){if(typeof setTopGuide==='function')setTopGuide('');if(!SMENU[m])m='dash';if(m==='shopfly')m='check';if(m==='settings'&&!isSafetyUI())m='dash';if(isCsUI())m='joint';if(typeof jtReset==='function'&&m!==smenu)jtReset();if(typeof heReset==='function'&&m!==smenu)heReset();if(['tpl','staff','data','principal'].includes(m)&&!state.isMaster)m='dash';if(['stores','depts','items'].includes(m)&&!isSafetyUI())m='dash';if(typeof stReset==='function')stReset();if(typeof ckReset==='function')ckReset();smenu=m;toggleMenu(false);if(typeof stopScan==='function')stopScan();
+function sgo(m){if(typeof setTopGuide==='function')setTopGuide('');if(!SMENU[m])m='dash';if(m==='shopfly')m='check';if(m==='settings'&&!isSafetyUI())m='dash';if(isCsUI())m='joint';if(isTeamUI())m='check';if(typeof jtReset==='function'&&m!==smenu)jtReset();if(typeof heReset==='function'&&m!==smenu)heReset();if(['tpl','staff','data','principal'].includes(m)&&!state.isMaster)m='dash';if(['stores','depts','items'].includes(m)&&!isSafetyUI())m='dash';if(typeof stReset==='function')stReset();if(typeof ckReset==='function')ckReset();smenu=m;toggleMenu(false);if(typeof stopScan==='function')stopScan();
  if(['tpl','staff','vendors'].includes(m)){switchTab(m);markSMenu();return}
  if(tab!=='jobs')switchTab('jobs');else loadJobs();markSMenu();window.scrollTo(0,0)}
 /** 알림 숫자 (showBadges에서 호출) · 업체 현황 = 가입 승인 대기 + 제출자료 검토 */
-function sBadges(b){if(!isStaffUI())return;b=b||{};const vd=(b.admin||0)+(b.review||0),dn=(typeof dashTodoN==='function'?dashTodoN():0);setBadge($('sm_vendors'),vd);setBadge($('sm_dash'),Math.max(dn,vd));setBadge($('menuBtn'),Math.max(dn,vd))}
+function sBadges(b){if(!isStaffUI())return;if(isTeamUI()){['sm_vendors','sm_dash','menuBtn'].forEach(id=>$(id)&&setBadge($(id),0));return}  /* S8-23 소속만 보기 = 알림 숫자 없음 */b=b||{};const vd=(b.admin||0)+(b.review||0),dn=(typeof dashTodoN==='function'?dashTodoN():0);setBadge($('sm_vendors'),vd);setBadge($('sm_dash'),Math.max(dn,vd));setBadge($('menuBtn'),Math.max(dn,vd))}
 /* ---------- 'jobs' 칸 화면 (메뉴별) ---------- */
 function renderJobs(){jobsMode='list';roomId='';clearInterval(roomTimer);const d=jobData;if(!d)return;if(typeof setTopGuide==='function')setTopGuide('');
  const H={flyer:sFlyer,dash:sDash,data:sData,principal:sPrincipal,stores:sStores,depts:sDepts,check:sChk,ca:sCa,co:sCo,joint:sJt,half:sHe,shopfly:sChk,items:sItems,settings:sSettings}[smenu]||sDash;

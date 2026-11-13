@@ -113,7 +113,7 @@ function orgScAdd(k){if(k&&ORG_SC[k]&&!orgSc.L.includes(k))orgSc.L.push(k);$('om
 function orgScDel(k){orgSc.L=orgSc.L.filter(x=>x!==k);$('omSc').innerHTML=orgScHtml()}
 const orgScTag=m=>'';  // S8-11 담당 표시 뺌 (이 앱에는 인테리어 · 오픈지원 화면이 없음)
 async function orgMemSave(id,unitId){const pk=$('f_omPk').value,d={id,unitId:$('f_omUnit')?$('f_omUnit').value:unitId,name:value('omName'),title:value('omTitle'),phone:value('omPhone'),companyEmail:value('omMail'),gmail:value('omGmail'),pk,scopes:orgSc?orgSc.L.slice():[]},miss=[];
- /* S8-18 팀장(자기 팀 + 겸직 팀) · CS 담당 */const LD=orgLd||{on:false,extra:[],cs:false};d.leads=LD.on?[...new Set([d.unitId].concat(LD.extra))].filter(x=>x&&x!==ORG_NONE):[];d.cs=!!LD.cs;
+ /* S8-18 팀장(자기 팀 + 겸직 팀) · CS 담당 */const LD=orgLd||{on:false,extra:[],cs:false,client:false};d.leads=LD.on?[...new Set([d.unitId].concat(LD.extra))].filter(x=>x&&x!==ORG_NONE):[];d.cs=!!LD.cs;d.client=!!LD.client;  // S8-23 도급인 담당자
  if(d.leads.length&&!d.companyEmail){inspFlag(['f_omMail'],'팀장을 켜려면 회사 이메일이 있어야 합니다');return}
  if(d.cs&&!d.gmail){inspFlag(['f_omGmail'],'CS 담당을 켜려면 로그인 Gmail이 있어야 합니다');return}
  const rep=d.leads.map(u=>{const x=orgD.members.find(y=>y.id!==id&&(y.leads||[]).includes(u));return x?(orgD.units.find(z=>z.id===u)||{}).name+' 팀장 '+x.name:''}).filter(Boolean);
@@ -159,7 +159,8 @@ function orgLinkHtml(){const N=orgStN(),K=Object.keys(N);if(!K.length)return '';
  *  팀장 = 켜면 자기 팀(소속 조직)의 매장 점검 Teams 알림을 받음 · 겸직 = 다른 팀을 더 고름 · 팀마다 1명 (저장하면 예전 팀장은 꺼짐)
  *  CS 담당 = 켜면 합동점검 CS 담당자 (로그인 Gmail 필요) · 둘 다 꺼짐 = 팀원 */
 let orgLd=null;
-function orgLdField(m){const k=m.id||'new';if(!orgLd||orgLd.k!==k){const L=m.leads||[];orgLd={k,on:L.includes(m.unitId||orgSel)||L.length>0,extra:L.filter(u=>u!==(m.unitId||orgSel)),cs:!!m.cs,mail0:m.companyEmail||'',gm0:m.gmail||''}}
+function orgLdField(m){const k=m.id||'new';if(!orgLd||orgLd.k!==k){const L=m.leads||[];orgLd={k,on:L.includes(m.unitId||orgSel)||L.length>0,extra:L.filter(u=>u!==(m.unitId||orgSel)),cs:!!m.cs,
+  client:m.id?!!m.client:!orgMemTeams(orgSel,[]).length,mail0:m.companyEmail||'',gm0:m.gmail||''}}  /* S8-23 새 사람 = 매장 팀 밖이면 켬 */
  return '<div id="omLd" style="margin-top:8px;border-top:1px solid var(--line)">'+orgLdHtml()+'</div>'}
 function orgLdHtml(){const D=orgLd,e=escapeText,N=orgStN(),own=$('f_omUnit')?$('f_omUnit').value:orgSel;
  const teams=orgD.units.filter(u=>N[u.name]!=null&&u.id!==own&&!D.extra.includes(u.id));
@@ -168,10 +169,23 @@ function orgLdHtml(){const D=orgLd,e=escapeText,N=orgStN(),own=$('f_omUnit')?$('
  return sw('lead',D.on,'팀장','켜면 이 팀의 매장 점검 Teams 알림(금요일 · 버튼)을 받습니다 · 팀마다 1명',D.on&&!mail?'회사 이메일(@daiso.co.kr)을 적어야 저장됩니다':'')
   +(D.on?'<div style="padding:0 0 8px 0"><span class="muted" style="font-size:12px">겸직 팀</span> '+D.extra.map(u=>'<span class="ogsc">'+e((orgD.units.find(x=>x.id===u)||{}).name||u)+'<button type="button" class="ogscx" aria-label="겸직 빼기" onclick="orgLdDel(\''+u+'\')">✕</button></span>').join('')
    +(teams.length?'<select class="ogscadd" aria-label="겸직 팀 추가" onchange="orgLdAdd(this.value)"><option value="">+ 겸직 팀</option>'+teams.map(u=>'<option value="'+u.id+'">'+e(u.name)+'</option>').join('')+'</select>':'')+'</div>':'')
-  +sw('cs',D.cs,'CS 담당','켜면 합동점검 CS 담당자 · 로그인하면 「합동점검」 화면만',D.cs&&!gm?'로그인 Gmail을 적어야 저장됩니다':'')}
+  +sw('cs',D.cs,'CS 담당','켜면 합동점검 CS 담당자 · 로그인하면 「합동점검」 화면만',D.cs&&!gm?'로그인 Gmail을 적어야 저장됩니다':'')
+  +orgClHtml(own)}
+/** S8-23 도급인 담당자 스위치 · 켬 = 마스터 · 안전보건팀처럼 전체 / 끔 = 소속만 보기 (매장 점검 · 내 소속 팀 매장만) */
+function orgClHtml(own){const D=orgLd,e=escapeText;if(orgPath(own).some(n=>/안전보건팀/.test(n)))return '';
+ if(D.cs)return '<div class="ogsw"><span class="t"><b>도급인 담당자</b><span>CS 담당은 「합동점검」 화면만 봅니다</span></span></div>';
+ const T=orgMemTeams(own,D.on?[own].concat(D.extra):[]),N=orgStN(),n=T.reduce((a,t)=>a+(N[t]||0),0);
+ const sub=D.client?'켬 = 마스터 · 안전보건팀처럼 모든 메뉴 · 전체 매장':'끔 = 소속만 보기 · 「매장 점검」 메뉴만'+(T.length?' · '+e(T.join(', '))+' (매장 '+n+'곳)':'');
+ return '<div class="ogsw"><span class="t"><b>도급인 담당자</b><span>'+sub+'</span>'+(!D.client&&!T.length?'<span class="w">끄면 볼 수 있는 팀이 없습니다 (매장 목록 팀 밖의 조직)</span>':'')+'</span><button type="button" class="ogtg" role="switch" aria-checked="'+D.client+'" aria-label="도급인 담당자" onclick="orgLdTg(\'client\')"></button></div>'
+  +(!D.client&&T.length?'<p class="muted" style="font-size:12px;margin:-2px 0 8px">'+(D.on?'팀장 = [미제출 복사] + [Teams로 공유하기]':'파트장 · 팀원 · 부서장 = [미제출 복사]만')+'</p>':'')}
+/** S8-23 볼 수 있는 팀 (fb.js memTeams 와 같은 기준) = 소속 조직 · 그 아래 · 그 위의 매장 목록 팀 + 팀장 겸직 팀 */
+function orgMemTeams(unitId,leads){const N=orgStN(),U=orgD.units,out=new Set(),add=u=>{if(u&&N[u.name]!=null)out.add(u.name)};
+ const down=(id,g)=>{if(g>20)return;U.filter(u=>u.parent===id).forEach(u=>{add(u);down(u.id,g+1)})};
+ let u=U.find(x=>x.id===unitId),g=0;if(u)down(u.id,0);while(u&&g++<20){add(u);const p=u.parent;u=U.find(x=>x.id===p)}
+ (leads||[]).forEach(id=>add(U.find(x=>x.id===id)));return [...out].sort((p,q)=>p.localeCompare(q,'ko',{numeric:true}))}
 function orgLdDraw(){const el=$('omLd');if(el)el.innerHTML=orgLdHtml()}
-function orgLdTg(k){if(k==='lead'){orgLd.on=!orgLd.on;if(!orgLd.on)orgLd.extra=[]}else orgLd.cs=!orgLd.cs;orgLdDraw()}
+function orgLdTg(k){if(k==='lead'){orgLd.on=!orgLd.on;if(!orgLd.on)orgLd.extra=[]}else if(k==='client')orgLd.client=!orgLd.client;else orgLd.cs=!orgLd.cs;orgLdDraw()}
 function orgLdAdd(u){if(u&&!orgLd.extra.includes(u))orgLd.extra.push(u);orgLdDraw()}
 function orgLdDel(u){orgLd.extra=orgLd.extra.filter(x=>x!==u);orgLdDraw()}
 /** 이름 옆 표시 */
-const orgLdTag=m=>((m.leads||[]).length?'<span class="ogbd k">팀장'+((m.leads||[]).length>1?' · 겸직 '+((m.leads||[]).length-1):'')+'</span>':'')+(m.cs?'<span class="ogbd c">CS 담당</span>':'');
+const orgLdTag=m=>((m.leads||[]).length?'<span class="ogbd k">팀장'+((m.leads||[]).length>1?' · 겸직 '+((m.leads||[]).length-1):'')+'</span>':'')+(m.cs?'<span class="ogbd c">CS 담당</span>':'')+(m.client&&!m.cs&&m.role==='CLIENT'?'<span class="ogbd">도급인 담당자</span>':'');  // S8-23
