@@ -124,7 +124,7 @@ function shRecCss(){if($('shRecCss'))return;const s=document.createElement('styl
  +'.shyr svg{width:18px;height:18px;fill:none;stroke:var(--main);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}'
  +'.shmg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.shm{font:inherit;color:inherit;border:1px solid var(--line);border-radius:10px;padding:6px 2px 5px;text-align:center;background:#fff;cursor:pointer}.shm b{display:block;font-size:13px}.shm i{display:block;font-style:normal;font-size:11px;color:var(--sub)}'
  +'.shm.full{background:var(--main);border-color:var(--main);color:#fff}.shm.full i{color:#fff}.shm.part i{color:var(--accent);font-weight:700}.shm:disabled{opacity:.45;cursor:default}.shm.on{outline:2px solid var(--main);outline-offset:2px}'
- +'.shm .dots{display:flex;justify-content:center;gap:3px;margin-top:3px}.shm .dots u{width:6px;height:6px;border-radius:50%;background:#d1d5db;text-decoration:none}.shm .dots u.y{background:var(--main)}.shm.full .dots u.y{background:#fff}.shm .dots u.n{background:#fff;box-shadow:inset 0 0 0 1.5px var(--accent)}'
+ +'.shm .dots{display:flex;justify-content:center;gap:3px;margin-top:3px}.shm .dots u{width:6px;height:6px;border-radius:50%;background:#d1d5db;text-decoration:none}.shm .dots u.y{background:var(--main)}.shm.full .dots u.y{background:#fff}.shm .dots u.n{background:#fff;box-shadow:inset 0 0 0 1.5px var(--accent)}.shm .dots u.o{background:#fff;box-shadow:inset 0 0 0 1.5px #9ca3af}'
  +'.shleg{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:11.5px;color:var(--sub)}.shleg u{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:-1px;text-decoration:none}'
  +'.shwk{display:flex;align-items:center;gap:10px;width:100%;padding:10px 0;border:0;border-top:1px solid var(--line);background:none;font:inherit;color:inherit;text-align:left}.shwk:first-of-type{border-top:0}button.shwk{cursor:pointer}'
  +'.shwk .n{width:48px;font-weight:700;flex:none}.shwk .t{flex:1;min-width:0}.shwk .t span{display:block;color:var(--sub);font-size:12px}.shwk.dim .n,.shwk.dim .t{opacity:.5}'
@@ -132,14 +132,16 @@ function shRecCss(){if($('shRecCss'))return;const s=document.createElement('styl
 /** 그 달의 월요일들 (YYYY-MM → [YYYY-MM-DD]) */
 function shMonWeeks(m){const L=[],d=new Date(m+'-01T00:00:00Z'),k=(d.getUTCDay()+6)%7;if(k)d.setUTCDate(d.getUTCDate()+7-k);while(d.toISOString().slice(0,7)===m){L.push(d.toISOString().slice(0,10));d.setUTCDate(d.getUTCDate()+7)}return L}
 /** 주 상태: ok 완료 · no 미완료 · fut 예정 · pre 시작 전 */
-function shWkSt(s,w){const H=shH;if(w<H.start)return 'pre';if(w>H.thisWeek)return 'fut';const sb=(s.subs||{})[w]||(!s.subs&&!(s.owed||[]).includes(w)?['',0]:null);return sb?'ok':'no'}
-function shMonCnt(s,m){const W=shMonWeeks(m),st=W.map(w=>shWkSt(s,w)),n=k=>st.filter(x=>x===k).length;return {W,st,ok:n('ok'),no:n('no'),fut:n('fut')}}
+/*  S8-11 old = 점검 시작 주 앞이지만 1년 안 → 지금 낼 수 있음 (「밀린 주」 · 미완료로 세지 않음) · pre = 그보다 앞 (못 냄) */
+const shMinW=()=>shH.minWeek||shH.start;
+function shWkSt(s,w){const H=shH;if(w>H.thisWeek)return 'fut';if((s.subs||{})[w])return 'ok';if(w<shMinW())return 'pre';if(w<H.start)return 'old';return (!s.subs&&!(s.owed||[]).includes(w))?'ok':'no'}
+function shMonCnt(s,m){const W=shMonWeeks(m),st=W.map(w=>shWkSt(s,w)),n=k=>st.filter(x=>x===k).length;return {W,st,ok:n('ok'),no:n('no'),fut:n('fut'),old:n('old')}}
 /** 홈 정보가 없으면 (메뉴에서 바로 들어온 경우) 먼저 읽음 */
 async function shEnsureH(){if(shH)return true;shH=shLS.get(SH_HOME,null);if(shH)return true;const P=shPicked();if(!P.length){shGo('pick');return false}
  shEl().innerHTML='<div class="card"><p class="muted">불러오는 중…</p></div>';try{shH=await shCall('scHome',{codes:P.map(s=>s.c)});shLS.set(SH_HOME,shH);return true}catch(e){shEl().innerHTML='<div class="card"><h2>불러오지 못했습니다</h2><button class="button" type="button" onclick="shGo(\'hist\')">다시 시도</button></div>';return false}}
 async function shStore(code,mon){shV='store';shMark('점검 이력');if(!await shEnsureH()||shV!=='store')return;shCss();shRecCss();
  const H=shH,S=H.stores||[],s=S.find(x=>x.c===code)||S.find(x=>x.c===shRecC)||S[0];if(!s){shGo('pick');return}code=s.c;shRecC=code;
- const e=escapeText,first=H.start.slice(0,7),last=H.today.slice(0,7),clamp=m=>m<first?first:m>last?last:m;
+ const e=escapeText,first=shMinW().slice(0,7),last=H.today.slice(0,7),clamp=m=>m<first?first:m>last?last:m;
  mon=clamp(mon||shStM[code]||H.thisWeek.slice(0,7));shStM[code]=mon;
  const yr=mon.slice(0,4),Y=Number(yr),go=m=>'shStore(\''+e(code)+'\',\''+m+'\')',owedN=x=>(x.owed||[]).length;
  /* 맨 위: 점검 이력 + 매장 */
@@ -147,23 +149,23 @@ async function shStore(code,mon){shV='store';shMark('점검 이력');if(!await s
   +(S.length>1?'<select class="shinp" style="margin:0;flex:1;min-width:0;font-weight:600" aria-label="매장" onchange="shStore(this.value)">'+S.map(x=>'<option value="'+e(x.c)+'"'+(x.c===code?' selected':'')+'>'+e(x.n)+(owedN(x)?' · 미완료 '+owedN(x):' · 완료')+'</option>').join('')+'</select>':'<span style="flex:1;font-weight:600">'+e(s.n)+'</span>')+'</div>';
  /* 가운데: 연도 + 12달 칸 */
  const cell=i=>{const m=yr+'-'+('0'+i).slice(-2),dis=m<first||m>last,c=dis?null:shMonCnt(s,m);
-  const cls=dis?'':c.no?' part':(c.ok&&!c.fut?' full':''),lab=m<first?'시작 전':m>last?'&nbsp;':(c.ok+c.no?c.ok+'/'+(c.ok+c.no):'예정');
-  return '<button type="button" class="shm'+cls+(m===mon?' on':'')+'"'+(dis?' disabled':' onclick="'+go(m)+'"')+' aria-label="'+i+'월"><b>'+i+'월</b><i>'+lab+'</i>'+(dis?'':'<span class="dots">'+c.st.map(x=>'<u class="'+(x==='ok'?'y':x==='no'?'n':'')+'"></u>').join('')+'</span>')+'</button>'};
+  const tot=dis?0:c.ok+c.no+c.old,cls=dis?'':c.no?' part':(tot&&c.ok===tot&&!c.fut?' full':''),lab=m<first?'&nbsp;':m>last?'&nbsp;':(tot?c.ok+'/'+tot:'예정');
+  return '<button type="button" class="shm'+cls+(m===mon?' on':'')+'"'+(dis?' disabled':' onclick="'+go(m)+'"')+' aria-label="'+i+'월"><b>'+i+'월</b><i>'+lab+'</i>'+(dis?'':'<span class="dots">'+c.st.map(x=>'<u class="'+(x==='ok'?'y':x==='no'?'n':x==='old'?'o':'')+'"></u>').join('')+'</span>')+'</button>'};
  const arrow=d=>'<svg viewBox="0 0 24 24"><path d="'+(d<0?'m14.5 6-6 6 6 6':'m9.5 6 6 6-6 6')+'"/></svg>';
  h+='<div class="card"><div class="shyr"><button type="button" aria-label="지난해"'+(Y>Number(first.slice(0,4))?' onclick="'+go(clamp((Y-1)+'-12'))+'"':' disabled')+'>'+arrow(-1)+'</button><b>'+Y+'년</b><button type="button" aria-label="다음 해"'+(Y<Number(last.slice(0,4))?' onclick="'+go(clamp((Y+1)+'-01'))+'"':' disabled')+'>'+arrow(1)+'</button></div>'
   +'<div class="shmg">'+Array.from({length:12},(_,i)=>cell(i+1)).join('')+'</div>'
-  +'<div class="shleg"><span><u style="background:var(--main)"></u>완료</span><span><u style="box-shadow:inset 0 0 0 1.5px var(--accent)"></u>미완료</span><span><u style="background:#d1d5db"></u>아직 안 온 주</span></div></div>';
+  +'<div class="shleg"><span><u style="background:var(--main)"></u>완료</span><span><u style="box-shadow:inset 0 0 0 1.5px var(--accent)"></u>미완료</span><span><u style="box-shadow:inset 0 0 0 1.5px #9ca3af"></u>시작 전 (낼 수 있음)</span><span><u style="background:#d1d5db"></u>아직 안 온 주</span></div></div>';
  /* 아래: 월 고르기 + 그 달 주차 전부 */
  const M=[];for(let m=last;m>=first&&M.length<120;m=(()=>{const y=+m.slice(0,4),k=+m.slice(5,7);return k===1?(y-1)+'-12':y+'-'+('0'+(k-1)).slice(-2)})())M.push(m);
- const mLab=m=>{const c=shMonCnt(s,m);return Number(m.slice(5,7))+'월'+(c.no?' · 미완료 '+c.no:c.ok&&!c.fut?' · 완료':c.ok?' · 완료 '+c.ok:' · 예정')};
+ const mLab=m=>{const c=shMonCnt(s,m);return Number(m.slice(5,7))+'월'+(c.no?' · 미완료 '+c.no:c.old?' · 완료 '+c.ok+' · 안 냄 '+c.old:c.ok&&!c.fut?' · 완료':c.ok?' · 완료 '+c.ok:' · 예정')};
  const ys=[...new Set(M.map(m=>m.slice(0,4)))];
  const C=shMonCnt(s,mon);
  h+='<div class="card"><div style="display:flex;align-items:center;gap:10px"><b style="white-space:nowrap;font-size:15px">월 고르기</b><select class="shinp" style="margin:0;flex:1;font-weight:600" aria-label="월 고르기" onchange="shStore(\''+e(code)+'\',this.value)">'
   +ys.map(y=>'<optgroup label="'+y+'년">'+M.filter(m=>m.slice(0,4)===y).map(m=>'<option value="'+m+'"'+(m===mon?' selected':'')+'>'+y+'년 '+mLab(m)+'</option>').join('')+'</optgroup>').join('')+'</select></div>'
-  +'<div class="muted" style="margin:8px 0 2px">완료 '+C.ok+' · '+(C.no?'<span style="color:var(--accent);font-weight:700">미완료 '+C.no+'</span>':'미완료 0')+(C.fut?' · 예정 '+C.fut:'')+'</div>'
+  +'<div class="muted" style="margin:8px 0 2px">완료 '+C.ok+' · '+(C.no?'<span style="color:var(--accent);font-weight:700">미완료 '+C.no+'</span>':'미완료 0')+(C.old?' · 시작 전 '+C.old:'')+(C.fut?' · 예정 '+C.fut:'')+'</div>'
   +C.W.map((w,i)=>{const st=C.st[i],sb=(s.subs||{})[w],rng=shW(w)+' ~ '+shW(shAddD(w,6)),n='<span class="n">'+(i+1)+'주차</span>';
    if(st==='ok')return '<button type="button" class="shwk" onclick="shGo(\'detail\',{id:\''+e(code+'_'+w)+'\',back:\''+e(code)+'\'})">'+n+'<span class="t">'+rng+'<span>'+(sb&&sb[0]?'제출 '+shW(sb[0])+' · ':'')+'미흡 '+((sb&&sb[1])||0)+'</span></span><span class="shpill ok">완료</span></button>';
-   if(st==='no')return '<div class="shwk">'+n+'<span class="t">'+rng+'<span>'+(w===H.thisWeek?'이번 주':'안 냄 · 지금 내면 「밀린 주」')+'</span></span><span class="shpill no">미완료</span><button class="button" type="button" style="padding:6px 11px;min-height:0;font-size:13px;white-space:nowrap" onclick="shGo(\'form\',{code:\''+e(code)+'\',week:\''+w+'\'})">점검하기</button></div>';
+   if(st==='no'||st==='old')return '<div class="shwk">'+n+'<span class="t">'+rng+'<span>'+(w===H.thisWeek?'이번 주':st==='old'?'점검 시작 전 주 · 지금 내면 「밀린 주」':'안 냄 · 지금 내면 「밀린 주」')+'</span></span><span class="shpill '+(st==='old'?'wait':'no')+'">'+(st==='old'?'안 냄':'미완료')+'</span><button class="button" type="button" style="padding:6px 11px;min-height:0;font-size:13px;white-space:nowrap" onclick="shGo(\'form\',{code:\''+e(code)+'\',week:\''+w+'\'})">점검하기</button></div>';
    return '<div class="shwk dim">'+n+'<span class="t">'+rng+'<span>'+(st==='fut'?'아직 안 옴':'점검 시작 전')+'</span></span><span class="shpill wait">'+(st==='fut'?'예정':'시작 전')+'</span></div>'}).join('')+'</div>';
  h+='<div class="card"><div class="shli" style="cursor:default">'+shIc('lock')+'<span class="t"><b>낸 점검은 점장이 고칠 수 없습니다</b><span class="muted">잘못 냈으면 도급인 담당자에게 말씀해 주세요.</span></span></div></div>';
  shEl().innerHTML=h}
@@ -284,7 +286,7 @@ function shDetailHtml(d,backFn,backTxt,editFn){shCss();const fx=d.fix||{},pics=[
  return {html,pics}}
 
 /* ---------- 협의체 결과 (S6 · council.js shCouncilView) ---------- */
-function shCouncil(){shCouncilView()}  // S6 council.js
+function shCouncil(){if(typeof shCoL!=='undefined')shCoL=null;shCouncilView()}  // S6 council.js
 
 /* ---------- S8-9 낸 점검 고치기 (도급인 담당자 · 안전보건팀 · 마스터만 · 매장 점검 → 매장 → 낸 점검 → [고치기]) ----------
  *  점장 점검표 화면을 그대로 씀 (화면 위 전체 창 #shEdit) · 예전 사진은 그대로 두거나 바꿈 · 저장 = Relay scEdit (점장은 고칠 수 없음) */

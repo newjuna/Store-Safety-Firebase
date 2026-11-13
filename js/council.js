@@ -11,7 +11,7 @@ function coHtml(b,who,back,extra){if(typeof chkCss==='function')chkCss();const e
   +'<div class="chknum"><div><b>'+b.sheets+'</b><span>점검 '+coPct(b.sheets,b.expect)+'</span></div><div class="'+(b.cPoor?'r':'')+'"><b>'+b.cPoor+'</b><span>공통 미흡</span></div><div class="'+(b.dPoor?'r':'')+'"><b>'+b.dPoor+'</b><span>도급 미흡</span></div><div class="'+(b.fRisk?'r':'')+'"><b>'+b.fRisk+'</b><span>집중 위험</span></div></div>'
   +(b.late?'<div class="muted" style="margin-top:6px">지난 기간 늦은 제출 '+b.late+'장 · 공통 미흡 '+(b.lateC||0)+' · 도급 미흡 '+(b.lateD||0)+' · 집중 위험 '+(b.lateF||0)+((b.lateTop||[]).length?' ('+b.lateTop.map(x=>e(x.name)+' '+x.n).join(' · ')+')':'')+'</div>':'')+'</div>';
  h+=extra||'';  // S8-1 협의체 회의 카드 (본사)
- if(who==='P'){const M=b.mine||[];h+='<div class="card"><h2 style="margin:0 0 4px">'+e(b.myStore)+'</h2><div class="muted">'+e(b.myDept)+'</div>'+(M.length?M.map(x=>'<div class="shli" style="cursor:default">'+shIc(x.status==='DONE'?'check':'alert',x.status!=='DONE')+'<span class="t"><b>'+e(x.name)+'</b><span class="muted">'+e(shW(x.regDate)+(x.company?' · '+x.company:''))+'</span></span><span class="shpill '+(x.status==='DONE'?'ok':'no')+'">'+(x.status==='DONE'?'조치':'미조치')+'</span></div>').join(''):'<p class="muted" style="margin:8px 0 0">이번 기간 미흡 없음</p>')+'</div>'}
+ if(who==='P'&&b.myStore){const M=b.mine||[];h+='<div class="card"><h2 style="margin:0 0 4px">'+e(b.myStore)+'</h2><div class="muted">'+e(b.myDept)+'</div>'+(M.length?M.map(x=>'<div class="shli" style="cursor:default">'+shIc(x.status==='DONE'?'check':'alert',x.status!=='DONE')+'<span class="t"><b>'+e(x.name)+'</b><span class="muted">'+e(shW(x.regDate)+(x.company?' · '+x.company:''))+'</span></span><span class="shpill '+(x.status==='DONE'?'ok':'no')+'">'+(x.status==='DONE'?'조치':'미조치')+'</span></div>').join(''):'<p class="muted" style="margin:8px 0 0">이번 기간 미흡 없음</p>')+'</div>'}
  const top=b.commonTop||[];
  h+='<div class="card"><h2 style="margin:0">위험요인 전파</h2>'+(top.length?'<table class="rtable chkt" style="margin-top:10px"><tr><th>공통 미흡 영역</th><th class="n">건</th></tr>'+top.map(x=>'<tr><td>'+e(x.name)+'</td><td class="n">'+x.n+'</td></tr>').join('')+'</table>':'<p class="muted" style="margin:8px 0 0">없음</p>')
   +((b.focusTop||[]).length?'<div class="muted" style="margin-top:8px">집중 위험 · '+b.focusTop.map(x=>e(x.name)+' '+x.n).join(' · ')+'</div>':'')+'</div>';
@@ -40,12 +40,24 @@ async function coMailNow(id){if(!await askOk('공문 메일',coMon(id)+' 협의�
 
 /* ---------- 점장 「협의체 결과」 (shop.js shGo('council')) ---------- */
 const SH_CO_SEEN='shopCoSeen';
-async function shCouncilView(id){shMark('협의체 결과');const P=shPicked();if(!P.length){shGo('pick');return}
- if(id){const code=(shCouncilView.store&&P.some(s=>s.c===shCouncilView.store))?shCouncilView.store:P[0].c;shEl().innerHTML='<div class="card"><p class="muted">불러오는 중…</p></div>';let b;
-  try{b=await shCall('scCouncil',{id,store:code})}catch(e){shCouncilView();return}if(shV!=='council')return;const seen=shLS.get(SH_CO_SEEN,[]);if(!seen.includes(id))shLS.set(SH_CO_SEEN,seen.concat(id).slice(-24));
-  const seg=P.length>1?'<div class="card" style="padding:10px"><select class="shinp" style="margin:0" onchange="shCouncilView.store=this.value;shCouncilView(\''+escapeText(id)+'\')" aria-label="매장">'+P.map(s=>'<option value="'+escapeText(s.c)+'"'+(s.c===code?' selected':'')+'>'+escapeText(s.n)+'</option>').join('')+'</select></div>':'';
-  /* S8-9 부서 · 팀 표 = 점장이 고른 매장의 부서만 (위험요인 전파 · 업체 재해는 전국 그대로) */
-  const MD=new Set([b.myDept].concat(P.map(s=>s.d)).filter(Boolean));if(MD.size)b={...b,byDept:(b.byDept||[]).filter(d=>MD.has(d.dept)),deptOnly:1};
-  shEl().innerHTML=seg+coHtml(b,'P','shCouncilView()');return}
- shEl().innerHTML='<div class="card"><p class="muted">불러오는 중…</p></div>';let r;try{r=await shCall('scCouncils',{})}catch(e){return}if(shV!=='council')return;const seen=shLS.get(SH_CO_SEEN,[]);
- shEl().innerHTML='<div class="card">'+(r.list.length?r.list.map(c=>'<button class="shli" type="button" onclick="shCouncilView(\''+escapeText(c.id)+'\')">'+shIc('doc')+'<span class="t"><b>'+escapeText(coMon(c.id))+'</b><span class="muted">'+escapeText(coRng(c))+'</span></span>'+(seen.includes(c.id)?'':'<span class="shpill no">새 글</span>')+'</button>').join(''):'<p class="muted" style="margin:0">아직 없습니다.</p>')+'</div>'}
+/* S8-11 협의체는 본사 ↔ 업체 본사 회의 → 매장 고르기 없음
+ *  처음 = 연도 ‹ › + 12달 칸 (결과가 있는 달만 누름 · 안 본 달 = 빨간 점) → 누르면 그 달 협의체 결과 화면만 */
+let shCoL=null,shCoY=0;
+async function shCouncilView(id){shMark('협의체 결과');const P=shPicked();if(!P.length){shGo('pick');return}if(typeof shRecCss==='function')shRecCss();
+ if(id){shEl().innerHTML='<div class="card"><p class="muted">불러오는 중…</p></div>';let b;
+  try{b=await shCall('scCouncil',{id,store:P[0].c})}catch(e){shCouncilView();return}if(shV!=='council')return;const seen=shLS.get(SH_CO_SEEN,[]);if(!seen.includes(id))shLS.set(SH_CO_SEEN,seen.concat(id).slice(-24));
+  /* S8-9 부서 · 팀 표 = 점장이 고른 매장의 부서만 (위험요인 전파 · 업체 재해는 전국 그대로) · 매장 한 곳 카드는 뺌 */
+  const MD=new Set([b.myDept].concat(P.map(s=>s.d)).filter(Boolean));b={...b,myStore:'',mine:null};if(MD.size)b={...b,byDept:(b.byDept||[]).filter(d=>MD.has(d.dept)),deptOnly:1};
+  shEl().innerHTML=coHtml(b,'P','shCouncilView()');window.scrollTo(0,0);return}
+ if(!shCoL){shEl().innerHTML='<div class="card"><p class="muted">불러오는 중…</p></div>';try{shCoL=(await shCall('scCouncils',{})).list||[]}catch(e){return}if(shV!=='council')return}
+ shCoDraw()}
+function shCoDraw(y){const L=shCoL||[],e=escapeText,seen=shLS.get(SH_CO_SEEN,[]),by={};L.forEach(c=>{by[c.id]=c});
+ const Ys=[...new Set(L.map(c=>Number(c.id.slice(0,4))))].sort(),now=new Date().getFullYear();if(!Ys.length)Ys.push(now);
+ y=y||shCoY||Ys[Ys.length-1];if(y<Ys[0])y=Ys[0];if(y>Ys[Ys.length-1])y=Ys[Ys.length-1];shCoY=y;
+ const arrow=d=>'<svg viewBox="0 0 24 24"><path d="'+(d<0?'m14.5 6-6 6 6 6':'m9.5 6 6 6-6 6')+'"/></svg>';
+ const cell=i=>{const id=y+'-'+('0'+i).slice(-2),c=by[id],nw=c&&!seen.includes(id);
+  return '<button type="button" class="shm'+(c?'':'')+'"'+(c?' onclick="shCouncilView(\''+id+'\')"':' disabled')+' aria-label="'+i+'월 협의체"><b>'+i+'월</b><i'+(nw?' style="color:var(--accent);font-weight:700"':'')+'>'+(c?(nw?'새 결과':'보기'):'&nbsp;')+'</i>'+(c?'<span class="dots"><u class="'+(nw?'n':'y')+'"></u></span>':'')+'</button>'};
+ shEl().innerHTML='<div class="card"><div class="shyr"><button type="button" aria-label="지난해"'+(y>Ys[0]?' onclick="shCoDraw('+(y-1)+')"':' disabled')+'>'+arrow(-1)+'</button><b>'+y+'년 협의체</b><button type="button" aria-label="다음 해"'+(y<Ys[Ys.length-1]?' onclick="shCoDraw('+(y+1)+')"':' disabled')+'>'+arrow(1)+'</button></div>'
+  +'<div class="shmg">'+Array.from({length:12},(_,i)=>cell(i+1)).join('')+'</div>'
+  +'<div class="shleg"><span><u style="box-shadow:inset 0 0 0 1.5px var(--accent)"></u>새 결과 (아직 안 봄)</span><span><u style="background:var(--main)"></u>본 결과</span><span>흐린 달 = 결과 없음</span></div>'
+  +(L.length?'':'<p class="muted" style="margin:8px 0 0">아직 협의체 결과가 없습니다. (매월 25일에 만들어집니다)</p>')+'</div>'}
