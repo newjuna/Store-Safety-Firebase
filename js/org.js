@@ -58,7 +58,7 @@ function orgFlat(){const out=[],walk=(p,d)=>orgKids(p).forEach(u=>{out.push([u,d
 function orgRender(){const el=$('staff');if(!el||!orgD)return;orgCss();if(typeof chkB!=='undefined')chkB=null;  /* S8-12 조직도를 본 뒤 「매장 점검」은 팀장 정보를 새로 읽음 */
  /* 고른 조직의 위 조직은 펼쳐 둠 */let u=orgD.units.find(x=>x.id===orgSel),g=0;while(u&&u.parent&&g++<12){orgOpen.add(u.parent);const p=u.parent;u=orgD.units.find(x=>x.id===p)}
  const nNone=orgD.members.filter(orgOrphan).length;
- el.innerHTML=(orgD.syncErr?'<div class="card" style="border-color:var(--accent);color:var(--accent);padding:10px 12px;margin-bottom:8px">팀장 정보를 매장 점검 쪽에 맞추지 못했습니다: '+escapeText(orgD.syncErr)+'</div>':'')+orgDupHtml()+orgQHtml()+'<div class="ogw"><nav class="ogs" aria-label="조직"><div class="ogsh"><span>조직</span><button class="xs" type="button" aria-label="맨 위 조직 추가" onclick="orgUF={mode:\'top\'};orgF=null;orgRender()">+</button></div>'
+ el.innerHTML=(orgD.syncErr?'<div class="card" style="border-color:var(--accent);color:var(--accent);padding:10px 12px;margin-bottom:8px">팀장 정보를 매장 점검 쪽에 맞추지 못했습니다: '+escapeText(orgD.syncErr)+'</div>':'')+orgImpHtml()+orgDupHtml()+orgQHtml()+'<div class="ogw"><nav class="ogs" aria-label="조직"><div class="ogsh"><span>조직</span><button class="xs" type="button" aria-label="맨 위 조직 추가" onclick="orgUF={mode:\'top\'};orgF=null;orgRender()">+</button></div>'
   +(nNone?'<button type="button" class="ogf'+(orgSel===ORG_NONE?' on':'')+'" style="color:'+(orgSel===ORG_NONE?'#fff':'var(--accent)')+';font-weight:700" onclick="orgSel=ORG_NONE;orgF=null;orgUF=null;orgRender()"><span class="ic"></span><span>⚠ 소속 없음 '+nNone+'명</span></button>':'')+orgTree('',0)+'</nav>'
   +'<section class="ogm" aria-live="polite">'+orgMain()+'</section></div>'+orgLinkHtml();
  if(orgUF||orgF)setTimeout(()=>$(orgUF?'f_ouName':'f_omName')?.focus(),30)}
@@ -137,6 +137,16 @@ function orgUnitInfo(u){const N=orgStN(),e=escapeText;
  const K=orgKids(u.id).filter(x=>N[x.name]!=null);if(K.length)return '<div class="muted" style="margin:-4px 0 8px">부서 · 팀 '+K.length+' · 매장 '+K.reduce((a,x)=>a+N[x.name],0)+'</div>';
 
  return ''}
+/** S8-20 예전에 자동으로 옮겨진 조직 (경영진 등 맨 위 조직 아래의 부서 · 팀) → [한 번에 지우기] (사람이 있는 곳은 남김) */
+function orgImpHtml(){const I=orgD.imported||[],e=escapeText;if(!I.length)return '';const tops=I.filter(x=>x.top),del=I.filter(x=>!x.n),ppl=I.filter(x=>x.n);
+ return '<div class="card" style="border-color:var(--accent);padding:10px 12px;margin-bottom:8px"><b style="color:var(--accent)">자동으로 옮겨진 조직 '+I.length+'개</b>'
+  +'<p class="muted" style="margin:2px 0 6px">예전 「부서 관리」 내용이 조직도로 자동으로 옮겨지면서 '+e(tops.map(x=>x.path.split(' › ')[0]).filter((v,i,a)=>a.indexOf(v)===i).join(' · '))+' 아래에 생긴 부서 · 팀입니다. 직접 만든 조직과 이름이 겹쳐 헷갈리니 지워 주세요.</p>'
+  +'<details><summary class="muted" style="cursor:pointer">목록 보기 (부서 '+tops.length+' · 팀 '+(I.length-tops.length)+')</summary><div class="muted" style="font-size:12px;margin-top:4px">'+I.map(x=>e(x.path)+(x.n?' · <b style="color:var(--accent)">사람 '+x.n+' (남김)</b>':'')).join('<br>')+'</div></details>'
+  +(del.length?'<button class="button" type="button" style="width:100%;margin-top:8px" onclick="orgImpClean()">사람 없는 '+del.length+'개 한 번에 지우기</button>':'')
+  +(ppl.length?'<p class="muted" style="margin:6px 0 0">사람이 있는 '+ppl.length+'곳은 남깁니다. 사람을 맞는 팀으로 옮긴 뒤 다시 누르면 지워집니다.</p>':'')+'</div>'}
+async function orgImpClean(){const I=(orgD.imported||[]).filter(x=>!x.n);if(!I.length)return;
+ if(!await askOk('자동으로 옮겨진 조직 지우기',I.length+'개 조직을 지웁니다.\n\n'+I.slice(0,12).map(x=>'· '+x.path).join('\n')+(I.length>12?'\n… 외 '+(I.length-12)+'개':'')+'\n\n사람이 있는 조직 · 직접 만든 조직은 지우지 않습니다.\n지울까요?','지우기'))return;
+ try{orgD=await call('orgImportClean');if(!orgD.units.some(u=>u.id===orgSel)){const f=orgD.units.find(u=>!u.parent);orgSel=f?f.id:''}orgRender();msg('지웠습니다.')}catch(e){}}
 /** S8-19 같은 이름 팀 조직 (매장 목록 팀과 이름이 같은데 2개 이상) → 빈 쪽을 지우게 안내 */
 function orgDupHtml(){const N=orgStN(),G={},e=escapeText;orgD.units.forEach(u=>{if(N[u.name]!=null)(G[u.name]=G[u.name]||[]).push(u)});const D=Object.keys(G).filter(k=>G[k].length>1);if(!D.length)return '';
  return '<div class="card" style="border-color:var(--accent);padding:10px 12px;margin-bottom:8px"><b style="color:var(--accent)">같은 이름 팀이 여러 개 있습니다</b><p class="muted" style="margin:2px 0 6px">매장 점검 · Teams는 팀장이 켜진 쪽을 씁니다. 헷갈리지 않게 비어 있는 쪽을 지워 주세요.</p>'
