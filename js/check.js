@@ -50,8 +50,10 @@ const chkMailOf=()=>{const M={};((chkB&&chkB.teams)||[]).forEach(([t,,m])=>{if(m
 function chkTeamHtml(all){const M=chkMailOf(),G={};all.filter(x=>!x.s).forEach(x=>{(G[x.t]=G[x.t]||[]).push(x)});const K=Object.keys(G).sort((p,q)=>G[q].length-G[p].length||p.localeCompare(q,'ko',{numeric:true})),e=escapeText;
  return '<div class="card"><div class="vh-top" style="align-items:center"><h2 style="margin:0">미제출 매장 (팀별)</h2>'+(K.length?'<span class="shpill no">'+K.length+'팀</span>':'')+'</div>'
   +(K.length?K.map(t=>{const L=G[t],d=L[0].dept;return '<button class="shli" type="button" onclick="chkGo('+e(JSON.stringify(['team',d,t]))+')"><span class="t"><b>'+e(t)+' · '+L.length+'곳</b><span class="muted">'+e(L.slice(0,3).map(x=>x.n).join(' · ')+(L.length>3?' 외 '+(L.length-3):''))+'</span></span>'
-   +'<span class="shpill'+(M[t]?'':' no')+'">'+(M[t]?'팀장 있음':'팀장 없음')+'</span></button>'}).join('')+'<p class="muted" style="margin:8px 0 0">팀장 = 조직도에서 그 팀 구성원 중 직책 「팀장」 · 회사 이메일로 Teams 알림을 받습니다. (☰ 설정 → 조직도)</p>'
+   +'<span class="shpill'+(M[t]?'':' no')+'">'+(M[t]?'팀장 있음':'팀장 없음')+'</span></button>'}).join('')+'<p class="muted" style="margin:8px 0 0">팀장 = 조직도에서 그 팀 구성원 중 직책 「팀장」 · 회사 이메일로 Teams 알림을 받습니다. (☰ 설정 → 조직도)</p>'+chkFriHtml()
    :'<p class="muted" style="margin:8px 0 0">이 주 미제출 매장이 없습니다.</p>')+'</div>'}
+/** S8-13 매주 금요일 09:30 자동 Teams 주간 현황 (Relay teamsFriday) · 마지막으로 보낸 기록 */
+function chkFriHtml(){const F=chkB&&chkB.fri;return '<p class="muted" style="margin:4px 0 0">매주 금요일 09:30 쯤 팀장에게 주간 현황 자동 알림'+(F&&F.at?' · 마지막 '+escapeText(fmtTime(F.at))+' · '+F.sent+'팀'+(F.fail?' (못 보냄 '+F.fail+')':''):' · 아직 보낸 기록 없음')+'</p>'}
 async function chkMailGo(){if(!chkB)return;
  /* S8-12 조직도에서 팀장을 바꾼 뒤에도 옛 화면 정보로 막지 않게 → 보내기 전에 팀장 정보 다시 읽음 */
  try{const nb=await call('checkBoard');chkB={...chkB,depts:nb.depts,teams:nb.teams}}catch(e){}
