@@ -35,7 +35,7 @@ function sStores(){stCss();if(!stB){return stWait('매장 목록')}if(stPv){jobs
   +(gone?'<div class="muted" style="margin-top:6px">목록에 없음 '+gone+'곳</div>':'')
   +'<div class="row" style="margin-top:10px;justify-content:space-between"><span class="muted">점장 주소 · QR은 ☰ 점장 안내문에서 만들고 보냅니다</span><button class="button ghost" type="button" onclick="sgo(\'shopfly\')">점장 안내문</button></div></div>'
   +(stPaste&&ed?'<div class="card"><h2>붙여넣기</h2><p class="muted" style="margin:0 0 8px">엑셀에서 제목 줄(매장 · 매장명 · 지역 · 형태 · 폐점여부)부터 복사해 붙여넣으세요.</p><textarea id="stText" class="stpaste" spellcheck="false" aria-label="매장 목록 붙여넣기"></textarea><button class="button" type="button" style="width:100%;margin-top:8px" onclick="stPreview()">미리보기</button></div>':'')
-  +(noD?'<button class="vtodo" type="button" onclick="sgo(\'depts\')"><span>부서 미지정 팀</span><span class="req">'+noD+'팀 ›</span></button>':'')
+  +(noD?'<button class="vtodo" type="button" onclick="sgo(\''+(state.isMaster?'staff':'stores')+'\')"><span>부서 미지정 팀 (조직도에 같은 이름 팀 없음)</span><span class="req">'+noD+'팀 ›</span></button>':'')
   +(stB.stores.length?'<div class="card"><div class="stbar"><input id="stQ" type="search" placeholder="매장명 · 코드" value="'+escapeText(stQ)+'" oninput="stQ=this.value;stFind()" aria-label="매장 찾기">'
    +'<select id="stTeam" onchange="stTeam=this.value;stFind()" aria-label="팀"><option value="">전체 팀</option>'+T.map(x=>'<option'+(x.t===stTeam?' selected':'')+'>'+escapeText(x.t)+'</option>').join('')+'</select>'
    +'<select id="stKind" onchange="stKind=this.value;stFind()" aria-label="형태"><option value="">전체 형태</option>'+ST_TYPES.concat(['목록에 없음']).map(k=>'<option'+(k===stKind?' selected':'')+'>'+k+'</option>').join('')+'</select></div><div id="stRes">'+stResHtml()+'</div></div>':'')}

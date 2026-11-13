@@ -45,6 +45,6 @@ function sDash(){smIcons();if(typeof chkCss==='function')chkCss();const e=escape
 
 /* ---------- 설정 (가끔 쓰는 것) ---------- */
 function sSettings(){smIcons();const S=isSafetyUI(),M=!!state.isMaster,L=[];
- if(S)L.push(["sgo('items')",'check','점검 항목','점장 순회점검 문항 · 가이드 사진 · 시작 주'],["sgo('stores')",'store','매장 목록','엑셀 붙여넣기'],["sgo('depts')",'users','부서 관리','팀 → 부서 · 팀장 메일 (Teams 알림)']);
- if(M)L.push(["sgo('tpl')",'doc','표준양식 관리',''],["sgo('staff')",'users','조직도','직원 · 역할 · 도급인 책임자'],["sgo('data')",'gear','데이터 관리','']);
+ if(S)L.push(["sgo('items')",'check','점검 항목','점장 순회점검 문항 · 가이드 사진 · 시작 주'],["sgo('stores')",'store','매장 목록','엑셀 붙여넣기']);  /* S8-9 부서 관리 → 조직도로 합침 (store.js sDepts 코드는 그대로 둠) */
+ if(M)L.push(["sgo('tpl')",'doc','표준양식 관리',''],["sgo('staff')",'users','조직도','부서 · 팀 · 팀장(Teams 알림) · CS팀 · 직원 · 도급인 책임자'],["sgo('data')",'gear','데이터 관리','']);
  return '<div class="card"><h2 style="margin:0 0 4px">설정</h2>'+(L.map(([g,ic,t,s])=>dsRow(g,ic,false,t,s,'')).join('')||'<p class="muted">쓸 수 있는 설정이 없습니다.</p>')+'</div>'}

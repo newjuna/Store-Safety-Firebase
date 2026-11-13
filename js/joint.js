@@ -48,18 +48,16 @@ function jtMineHtml(M,full){const t=(jtB&&jtB.today)||kstToday(),e=escapeText,up
  return (full?'<div class="card"><h2 style="margin:0">'+e(((jtB&&jtB.name)||'')+' 님')+'</h2><div class="muted">CS팀 · 합동점검</div></div>':'')
   +'<div class="card"><h2 style="margin:0 0 4px">내 합동점검</h2>'+(up.length?up.map(row).join(''):'<p class="muted" style="margin:8px 0 0">예정된 합동점검이 없습니다.</p>')
   +(full&&done.length?'<details class="hist"><summary>완료 '+done.length+'</summary>'+done.slice(0,40).map(row).join('')+'</details>':'')+'</div>'}
-/** S8-7 CS 담당자 (조직관리 모양) · 담당자 밑에 이번 분기 맡은 합동점검 · 안전보건팀이 이름 + Gmail로 직접 등록 (초대 링크 · 메일 없음) */
+/** S8-9 CS 담당자 = 조직도 「CS팀」 구성원 중 로그인 Gmail 있는 사람 (여기서는 명단만 · 추가 · 고치기는 조직도) · 담당자 밑에 이번 분기 맡은 합동점검 */
 function jtCsHtml(){const B=jtB,e=escapeText,ed=B.canEdit,t=B.today,L=B.list||[];
  const kids=c=>L.filter(x=>String(x.csEmail).toLowerCase()===String(c.email).toLowerCase());
- return '<div class="card"><h2 style="margin:0 0 4px">CS 담당자</h2>'
+ return '<div class="card"><div class="vh-top" style="align-items:center"><h2 style="margin:0">CS 담당자</h2><span class="muted">조직도 CS팀에서 관리</span></div>'
   +B.csList.map(c=>{const K=kids(c),off=c.status==='STOP';
-   return '<div class="jtwho"'+(off?' style="opacity:.6"':'')+'><span class="jtav">'+e((c.name||'?').slice(0,1))+'</span><span class="t"><b>'+e(c.name)+'</b> <span class="muted">'+e(c.email)+'</span></span><span class="shpill">'+K.length+'건</span>'
-    +(ed?'<button type="button" class="shpill '+(off?'':'ok')+'" style="border:0;cursor:pointer" onclick="jtCsStop(\''+e(c.email)+'\','+off+')">'+(off?'중지':'사용')+'</button>':'')+'</div>'
+   return '<div class="jtwho"'+(off?' style="opacity:.6"':'')+'><span class="jtav">'+e((c.name||'?').slice(0,1))+'</span><span class="t"><b>'+e(c.name)+'</b> <span class="muted">'+e(c.email)+(c.org?'':' · 예전 직접 등록')+'</span></span><span class="shpill">'+K.length+'건</span>'
+    +(ed&&!c.org?'<button type="button" class="shpill '+(off?'':'ok')+'" style="border:0;cursor:pointer" onclick="jtCsStop(\''+e(c.email)+'\','+off+')">'+(off?'중지':'사용')+'</button>':off?'<span class="shpill">중지</span>':'')+'</div>'
     +(K.length?'<div style="border-left:2px solid var(--line);margin-left:13px;padding-left:12px">'+K.map(x=>{const [s,cl]=jtSt(x,t);return '<button class="shli" type="button" onclick="jtOpen(\''+e(x.id)+'\')">'+shIc('cal',cl==='no')+'<span class="t"><b>'+e(x.storeName+' · '+jtD(x.date))+'</b><span class="muted">'+e(x.company)+'</span></span><span class="shpill '+cl+'">'+s+'</span></button>'}).join('')+'</div>':'')}).join('')
-  +(!B.csList.length?'<p class="muted" style="margin:8px 0 0">아직 없습니다.</p>':'')
-  +(ed?'<div class="row" style="gap:6px;margin-top:10px"><input id="jtCsN" class="shinp" style="flex:1;margin:0" placeholder="이름" autocomplete="off" aria-label="CS 담당자 이름"><input id="jtCsE" class="shinp" style="flex:1.4;margin:0" type="email" placeholder="Gmail" autocomplete="off" aria-label="CS 담당자 Gmail"></div>'
-   +'<button class="button ghost" type="button" style="width:100%;margin-top:8px" onclick="jtCsAdd()">＋ CS 담당자 추가</button>'
-   +'<p class="muted" style="margin:8px 0 0">등록한 Gmail로 앱에 로그인하면 「합동점검」 화면만 열립니다. (메일은 따로 가지 않습니다)</p>':'')+'</div>'}
+  +(!B.csList.length?'<p class="muted" style="margin:8px 0 0">아직 없습니다. 조직도의 「CS팀」에 사람을 넣고 로그인 Gmail을 적으면 여기에 나옵니다.</p>':'')
+  +'<p class="muted" style="margin:8px 0 0">조직도 「CS팀」 구성원 중 로그인 Gmail이 있는 사람 · 그 Gmail로 로그인하면 「합동점검」 화면만 열립니다.'+(state.isMaster?' <button type="button" class="linkbtn" onclick="sgo(\'staff\')">조직도 열기</button>':'')+'</p></div>'}
 async function jtCsAdd(){const n=($('jtCsN').value||'').trim(),m=($('jtCsE').value||'').trim().toLowerCase(),miss=[];if(!n)miss.push('jtCsN');if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m))miss.push('jtCsE');if(miss.length){inspFlag(miss,miss.length>1?'이름 · Gmail':n?'Gmail':'이름');return}
  try{const r=await call('csAdd',n,m);jtB={...jtB,csList:r.csList,invites:r.invites};renderJobs();msg(n+' 님을 등록했습니다. 이 Gmail로 로그인하면 됩니다.')}catch(e){}}
 async function jtInvite(){const n=prompt('CS팀 담당자 이름');if(n===null)return;if(!n.trim()){msg('이름을 적어 주세요.');return}

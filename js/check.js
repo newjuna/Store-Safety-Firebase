@@ -50,10 +50,10 @@ const chkMailOf=()=>{const M={};((chkB&&chkB.teams)||[]).forEach(([t,,m])=>{if(m
 function chkTeamHtml(all){const M=chkMailOf(),G={};all.filter(x=>!x.s).forEach(x=>{(G[x.t]=G[x.t]||[]).push(x)});const K=Object.keys(G).sort((p,q)=>G[q].length-G[p].length||p.localeCompare(q,'ko',{numeric:true})),e=escapeText;
  return '<div class="card"><div class="vh-top" style="align-items:center"><h2 style="margin:0">미제출 매장 (팀별)</h2>'+(K.length?'<span class="shpill no">'+K.length+'팀</span>':'')+'</div>'
   +(K.length?K.map(t=>{const L=G[t],d=L[0].dept;return '<button class="shli" type="button" onclick="chkGo('+e(JSON.stringify(['team',d,t]))+')"><span class="t"><b>'+e(t)+' · '+L.length+'곳</b><span class="muted">'+e(L.slice(0,3).map(x=>x.n).join(' · ')+(L.length>3?' 외 '+(L.length-3):''))+'</span></span>'
-   +'<span class="shpill'+(M[t]?'':' no')+'">'+(M[t]?'팀장 있음':'팀장 없음')+'</span></button>'}).join('')+'<p class="muted" style="margin:8px 0 0">팀장 회사메일은 ☰ 설정 → 부서 관리에서 적습니다. (Teams 알림을 받는 사람)</p>'
+   +'<span class="shpill'+(M[t]?'':' no')+'">'+(M[t]?'팀장 있음':'팀장 없음')+'</span></button>'}).join('')+'<p class="muted" style="margin:8px 0 0">팀장 = 조직도에서 그 팀 구성원 중 직책 「팀장」 · 회사 이메일로 Teams 알림을 받습니다. (☰ 설정 → 조직도)</p>'
    :'<p class="muted" style="margin:8px 0 0">이 주 미제출 매장이 없습니다.</p>')+'</div>'}
 async function chkMailGo(){if(!chkB)return;const M=chkMailOf(),G={};chkRows().filter(x=>!x.s).forEach(x=>{G[x.t]=(G[x.t]||0)+1});const K=Object.keys(G),yes=K.filter(t=>M[t]),no=K.filter(t=>!M[t]);
- if(!K.length){msg('미제출 매장이 없습니다.');return}if(!yes.length){msg('팀장 회사메일이 없습니다. ☰ 설정 → 부서 관리에서 적어 주세요.');return}
+ if(!K.length){msg('미제출 매장이 없습니다.');return}if(!yes.length){msg('팀장이 없습니다. ☰ 설정 → 조직도에서 팀 구성원 직책 「팀장」 · 회사 이메일을 넣어 주세요.');return}
  if(!await askOk('팀장에게 Teams 알림',chkWl(chkW)+' (월) 주 미제출 매장을 팀장에게 Teams로 알립니다.\n\n보냄 '+yes.length+'팀 · '+yes.slice(0,6).map(t=>t+' '+G[t]+'곳').join(', ')+(yes.length>6?' …':'')+(no.length?'\n팀장 없음(안 보냄) '+no.length+'팀 · '+no.slice(0,4).join(', '):''),'보내기'))return;
  try{const r=await call('chkMail',chkW);const bad=r.teams.filter(x=>!x.ok).length;msg(r.none?'미제출 매장이 없습니다.':'Teams 알림 '+r.sent+'팀'+(bad?' · 못 보냄 '+bad+'팀 (Teams 연결 확인)':'')+(r.noMail.length?' · 팀장 없음 '+r.noMail.length+'팀':''))}catch(e){}}
 function chkShopHtml(){if(typeof sShopFly!=='function')return '';return sShopFly()}
@@ -62,7 +62,10 @@ function chkGo(lv){chkLv=lv;renderJobs();window.scrollTo(0,0)}
 function chkCopy(){const [lv,a,b]=chkLv,L=chkRows().filter(x=>!x.s&&(lv==='all'||x.dept===a)&&(lv!=='team'||x.t===b));if(!L.length){msg('미제출 매장이 없습니다.');return}
  const t=['매장\t매장명\t팀\t부서\t밀린 주'].concat(L.map(x=>[x.c,x.n,x.t,x.dept,x.owed].join('\t'))).join('\n');
  (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>msg('미제출 '+L.length+'곳을 복사했습니다. 엑셀에 붙여넣으세요.'),()=>prompt('복사해 주세요.',t))}
-async function chkOpen(code){let d;try{d=await call('scDetail',code,code+'_'+chkW)}catch(e){return}const o=shDetailHtml(d,'chkBack()','← 매장 점검');chkDet=o.html;renderJobs();window.scrollTo(0,0);o.pics.forEach(([k,fid,ref])=>shPicLoad(k,code,ref,fid))}
+async function chkOpen(code){const id=code+'_'+chkW;let d;try{d=await call('scDetail',code,id)}catch(e){return}
+ const o=shDetailHtml(d,'chkBack()','← 매장 점검','shEditOpen(\''+escapeText(code)+'\',\''+escapeText(id)+'\')');chkDet=o.html;renderJobs();window.scrollTo(0,0);o.pics.forEach(([k,fid,ref])=>shPicLoad(k,code,ref,fid))}  // S8-9 [고치기]
+/** S8-9 고친 뒤: 현황 다시 읽고 그 점검을 다시 보여 줌 */
+async function chkAfterEdit(code){chkDet=null;await chkLoad(true);chkOpen(code)}
 function chkBack(){chkDet=null;renderJobs()}
 
 /* ---------- 점검 항목 관리 (안전보건팀) ---------- */

@@ -10,7 +10,7 @@ let orgD=null,orgSel='',orgOpen=new Set(),orgF=null,orgUF=null;
 /* 예전 화면에서 쓰던 이름 (메뉴·다른 화면이 불러도 오류 없게) */
 let orgTab=1,orgEdit=null,orgMem=null;
 const ORG_PK={ceo:'총괄책임자',delegate:'인테리어 현장대리인',delegateOpen:'오픈지원 현장대리인'};  // F2.9 담당별 현장대리인
-function orgCss(){if($('orgCss'))return;const s=document.createElement('style');s.id='orgCss';s.textContent=
+function orgCss(){if(typeof shCss==='function')shCss();if($('orgCss'))return;const s=document.createElement('style');s.id='orgCss';s.textContent=
  '.ogw{display:flex;background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;min-height:62vh}'
  +'.ogs{width:36%;max-width:250px;flex:none;background:#f8f9fb;border-right:1px solid var(--line);padding:6px 3px;overflow-y:auto;max-height:78vh}'
  +'.ogsh{display:flex;justify-content:space-between;align-items:center;padding:2px 6px 6px;font-size:12px;font-weight:700;color:var(--sub)}'
@@ -38,7 +38,7 @@ function orgFlat(){const out=[],walk=(p,d)=>orgKids(p).forEach(u=>{out.push([u,d
 function orgRender(){const el=$('staff');if(!el||!orgD)return;orgCss();
  /* 고른 조직의 위 조직은 펼쳐 둠 */let u=orgD.units.find(x=>x.id===orgSel),g=0;while(u&&u.parent&&g++<12){orgOpen.add(u.parent);const p=u.parent;u=orgD.units.find(x=>x.id===p)}
  el.innerHTML='<div class="ogw"><nav class="ogs" aria-label="조직"><div class="ogsh"><span>조직</span><button class="xs" type="button" aria-label="맨 위 조직 추가" onclick="orgUF={mode:\'top\'};orgF=null;orgRender()">+</button></div>'+orgTree('',0)+'</nav>'
-  +'<section class="ogm" aria-live="polite">'+orgMain()+'</section></div>';
+  +'<section class="ogm" aria-live="polite">'+orgMain()+'</section></div>'+orgLinkHtml();
  if(orgUF||orgF)setTimeout(()=>$(orgUF?'f_ouName':'f_omName')?.focus(),30)}
 function orgTree(p,d){return orgKids(p).map(u=>{const kids=orgKids(u.id).length,op=orgOpen.has(u.id);
  return '<button type="button" class="ogf'+(orgSel===u.id?' on':'')+'" style="padding-left:'+(5+d*11)+'px" '+(kids?'aria-expanded="'+op+'"':'')+' onclick="orgPick(\''+u.id+'\')"><span class="ic" aria-hidden="true">'+(kids?(op?'▼':'▶'):'')+'</span><span>📁 '+escapeText(u.name)+'</span></button>'+(kids&&op?orgTree(u.id,d+1):'')}).join('')}
@@ -47,7 +47,7 @@ function orgMain(){const u=orgD.units.find(x=>x.id===orgSel);
  if(orgUF&&orgUF.mode==='top')return orgUnitForm();
  if(!u)return '<p class="muted">왼쪽에서 조직을 고르거나 [+]로 조직을 만들어 주세요.</p>';
  const L=orgD.members.filter(m=>m.unitId===u.id);
- return '<div class="ogp">'+escapeText(orgPath(u.id).slice(0,-1).join(' › '))+'</div><div class="ogt">'+escapeText(u.name)+'</div>'
+ return '<div class="ogp">'+escapeText(orgPath(u.id).slice(0,-1).join(' › '))+'</div><div class="ogt">'+escapeText(u.name)+'</div>'+orgUnitInfo(u)
   +'<div class="ogbar"><button class="button" type="button" onclick="orgF={};orgUF=null;orgRender()">+ 사람</button><button class="button ghost" type="button" onclick="orgUF={mode:\'sub\'};orgF=null;orgRender()">+ 아래 조직</button><button class="button ghost" type="button" aria-label="조직 이름 바꾸기 · 옮기기 · 삭제" onclick="orgUF={mode:\'edit\'};orgF=null;orgRender()">✎</button></div>'
   +(orgUF?orgUnitForm(u):'')+(orgF&&!orgF.id?orgMemForm({unitId:u.id}):'')
   +(L.map(m=>orgF&&orgF.id===m.id?orgMemForm(m):'<button type="button" class="ogr" onclick="orgF={id:\''+m.id+'\'};orgUF=null;orgRender()"><span class="ogav" aria-hidden="true">'+escapeText((m.name||'?').slice(0,1))+'</span><span class="ognm"><b>'+escapeText(m.name)+'</b><span class="t">'+escapeText(m.title)+'</span><div>'+escapeText(m.companyEmail||m.phone||' ')+'</div></span>'+orgScTag(m)+(m.pk?'<span class="ogmk">'+ORG_PK[m.pk]+'</span>':'')+'</button>').join('')
@@ -97,3 +97,16 @@ async function orgMemSave(id,unitId){const pk=$('f_omPk').value,d={id,unitId:$('
 async function orgMemDel(id){const m=orgD.members.find(x=>x.id===id);if(!m)return;if(m.pk){popup('삭제할 수 없습니다',m.name+'은(는) '+ORG_PK[m.pk]+'로 지정되어 있습니다. 다른 사람을 '+ORG_PK[m.pk]+'로 먼저 지정해 주세요.','확인');return}
  if(!await askOk('삭제',m.name+' '+m.title+'을(를) 삭제할까요?'+(m.gmail?'\n앱 로그인도 같이 막힙니다.':''),'삭제'))return;
  try{orgD=await call('orgDeleteMember',id);orgF=null;orgRender();msg('삭제했습니다.')}catch(e){}}
+/* ---------- S8-9 부서 관리 합침: 매장 목록 「팀」 = 이름이 같은 조직 · 그 위 조직 = 부서 · 팀장 = 직책 「팀장」 + 회사 이메일 (Teams 알림) ----------
+ *  저장하면 fb.js orgDeptSync 가 STORES/depts 를 자동으로 맞춤 · CS팀 = 이름에 「CS팀」이 들어간 조직 (로그인 Gmail 있는 사람 = 합동점검 CS 담당자) */
+const orgStN=()=>(orgD&&orgD.stTeams)||{};
+const orgBoss=u=>orgD.members.find(m=>m.unitId===u.id&&/팀장/.test(m.title||'')&&m.companyEmail);
+function orgUnitInfo(u){const N=orgStN(),e=escapeText;
+ if(N[u.name]!=null){const b=orgBoss(u);return '<div class="row" style="gap:6px;margin:-4px 0 8px;flex-wrap:wrap;justify-content:space-between"><span class="muted">매장 '+N[u.name]+' · '+(b?'팀장 '+e(b.name)+' ('+e(b.companyEmail)+')':'팀장 없음 · 직책 「팀장」 + 회사 이메일을 넣어 주세요')+'</span><span class="shpill '+(b?'ok':'no')+'">'+(b?'Teams':'팀장 없음')+'</span></div>'}
+ const K=orgKids(u.id).filter(x=>N[x.name]!=null);if(K.length)return '<div class="muted" style="margin:-4px 0 8px">부서 · 팀 '+K.length+' · 매장 '+K.reduce((a,x)=>a+N[x.name],0)+'</div>';
+ if(/CS\s*팀/i.test(u.name))return '<div class="muted" style="margin:-4px 0 8px">로그인 Gmail이 있는 사람 = 합동점검 CS 담당자</div>';
+ return ''}
+function orgLinkHtml(){const N=orgStN(),K=Object.keys(N);if(!K.length)return '';const names=new Set(orgD.units.map(u=>u.name)),L=K.filter(t=>!names.has(t)).sort((p,q)=>p.localeCompare(q,'ko',{numeric:true})),e=escapeText;
+ return '<div class="card" style="margin-top:10px"><h2 style="margin:0 0 4px;font-size:16px">매장 목록에만 있는 팀</h2>'
+  +(L.length?L.map(t=>'<div class="row" style="justify-content:space-between;padding:6px 0;border-top:1px solid var(--line)"><span><b>'+e(t)+'</b> <span class="muted">매장 '+N[t]+'</span></span><span class="shpill no">연결 안 됨</span></div>').join('')+'<p class="muted" style="margin:6px 0 0">조직도에 같은 이름의 팀을 만들면 자동으로 붙습니다. (팀 바로 위 조직 = 부서)</p>'
+   :'<p class="muted" style="margin:6px 0 0">매장 목록의 팀 '+K.length+'개가 모두 조직도에 연결되어 있습니다.</p>')+'</div>'}
