@@ -58,7 +58,7 @@ function orgFlat(){const out=[],walk=(p,d)=>orgKids(p).forEach(u=>{out.push([u,d
 function orgRender(){const el=$('staff');if(!el||!orgD)return;orgCss();if(typeof chkB!=='undefined')chkB=null;  /* S8-12 조직도를 본 뒤 「매장 점검」은 팀장 정보를 새로 읽음 */
  /* 고른 조직의 위 조직은 펼쳐 둠 */let u=orgD.units.find(x=>x.id===orgSel),g=0;while(u&&u.parent&&g++<12){orgOpen.add(u.parent);const p=u.parent;u=orgD.units.find(x=>x.id===p)}
  const nNone=orgD.members.filter(orgOrphan).length;
- el.innerHTML=(orgD.syncErr?'<div class="card" style="border-color:var(--accent);color:var(--accent);padding:10px 12px;margin-bottom:8px">팀장 정보를 매장 점검 쪽에 맞추지 못했습니다: '+escapeText(orgD.syncErr)+'</div>':'')+orgQHtml()+'<div class="ogw"><nav class="ogs" aria-label="조직"><div class="ogsh"><span>조직</span><button class="xs" type="button" aria-label="맨 위 조직 추가" onclick="orgUF={mode:\'top\'};orgF=null;orgRender()">+</button></div>'
+ el.innerHTML=(orgD.syncErr?'<div class="card" style="border-color:var(--accent);color:var(--accent);padding:10px 12px;margin-bottom:8px">팀장 정보를 매장 점검 쪽에 맞추지 못했습니다: '+escapeText(orgD.syncErr)+'</div>':'')+orgDupHtml()+orgQHtml()+'<div class="ogw"><nav class="ogs" aria-label="조직"><div class="ogsh"><span>조직</span><button class="xs" type="button" aria-label="맨 위 조직 추가" onclick="orgUF={mode:\'top\'};orgF=null;orgRender()">+</button></div>'
   +(nNone?'<button type="button" class="ogf'+(orgSel===ORG_NONE?' on':'')+'" style="color:'+(orgSel===ORG_NONE?'#fff':'var(--accent)')+';font-weight:700" onclick="orgSel=ORG_NONE;orgF=null;orgUF=null;orgRender()"><span class="ic"></span><span>⚠ 소속 없음 '+nNone+'명</span></button>':'')+orgTree('',0)+'</nav>'
   +'<section class="ogm" aria-live="polite">'+orgMain()+'</section></div>'+orgLinkHtml();
  if(orgUF||orgF)setTimeout(()=>$(orgUF?'f_ouName':'f_omName')?.focus(),30)}
@@ -131,12 +131,16 @@ async function orgMemDel(id){const m=orgD.members.find(x=>x.id===id);if(!m)retur
 const orgStN=()=>(orgD&&orgD.stTeams)||{};
 const orgBoss=u=>orgD.members.find(m=>(m.leads||[]).includes(u.id)&&m.companyEmail);  // S8-18 팀장 스위치
 function orgUnitInfo(u){const N=orgStN(),e=escapeText;
- if(N[u.name]!=null){const b=orgBoss(u),sent=(orgD.sent||{})[u.name],off=b&&String(sent||'').toLowerCase()!==String(b.companyEmail).toLowerCase();
+ if(N[u.name]!=null){const b=orgBoss(u)||orgD.units.filter(x=>x.name===u.name&&x.id!==u.id).map(orgBoss).find(Boolean),sent=  /* S8-19 같은 이름 팀이 또 있으면 그쪽 팀장도 봄 */(orgD.sent||{})[u.name],off=b&&String(sent||'').toLowerCase()!==String(b.companyEmail).toLowerCase();
   return '<div class="row" style="gap:6px;margin:-4px 0 8px;flex-wrap:wrap;justify-content:space-between"><span class="muted">매장 '+N[u.name]+' · '+(b?'팀장 '+e(b.name)+' ('+e(b.companyEmail)+')':'팀장 없음 · 사람을 눌러 「팀장」을 켜 주세요')+'</span><span class="shpill '+(b&&!off?'ok':'no')+'">'+(b?(off?'아직 반영 안 됨':'Teams 받음'):'팀장 없음')+'</span></div>'
    +(off?'<p class="muted" style="color:var(--accent);margin:-4px 0 8px">매장 점검 쪽에는 「'+e(sent||'팀장 없음')+'」으로 되어 있습니다. 화면을 새로 고쳐도 같으면 회사 이메일이 @daiso.co.kr 인지 확인해 주세요.</p>':'')}
  const K=orgKids(u.id).filter(x=>N[x.name]!=null);if(K.length)return '<div class="muted" style="margin:-4px 0 8px">부서 · 팀 '+K.length+' · 매장 '+K.reduce((a,x)=>a+N[x.name],0)+'</div>';
 
  return ''}
+/** S8-19 같은 이름 팀 조직 (매장 목록 팀과 이름이 같은데 2개 이상) → 빈 쪽을 지우게 안내 */
+function orgDupHtml(){const N=orgStN(),G={},e=escapeText;orgD.units.forEach(u=>{if(N[u.name]!=null)(G[u.name]=G[u.name]||[]).push(u)});const D=Object.keys(G).filter(k=>G[k].length>1);if(!D.length)return '';
+ return '<div class="card" style="border-color:var(--accent);padding:10px 12px;margin-bottom:8px"><b style="color:var(--accent)">같은 이름 팀이 여러 개 있습니다</b><p class="muted" style="margin:2px 0 6px">매장 점검 · Teams는 팀장이 켜진 쪽을 씁니다. 헷갈리지 않게 비어 있는 쪽을 지워 주세요.</p>'
+  +D.map(k=>G[k].map(u=>{const n=orgD.members.filter(m=>m.unitId===u.id).length,b=orgBoss(u);return '<button type="button" class="ogr" onclick="orgPick(\''+u.id+'\')"><span class="ognm"><b>'+e(u.name)+'</b><div>'+e(orgPath(u.id).slice(0,-1).join(' › ')||'맨 위')+' · 사람 '+n+'</div></span>'+(b?'<span class="ogbd k">팀장 '+e(b.name)+'</span>':'<span class="shpill">'+(n?'팀장 없음':'비어 있음')+'</span>')+'</button>'}).join('')).join('')+'</div>'}
 function orgLinkHtml(){const N=orgStN(),K=Object.keys(N);if(!K.length)return '';const names=new Set(orgD.units.map(u=>u.name)),L=K.filter(t=>!names.has(t)).sort((p,q)=>p.localeCompare(q,'ko',{numeric:true})),e=escapeText;
  return '<div class="card" style="margin-top:10px"><h2 style="margin:0 0 4px;font-size:16px">매장 목록에만 있는 팀</h2>'
   +(L.length?L.map(t=>'<div class="row" style="justify-content:space-between;padding:6px 0;border-top:1px solid var(--line)"><span><b>'+e(t)+'</b> <span class="muted">매장 '+N[t]+'</span></span><span class="shpill no">연결 안 됨</span></div>').join('')+'<p class="muted" style="margin:6px 0 0">조직도에 같은 이름의 팀을 만들면 자동으로 붙습니다. (팀 바로 위 조직 = 부서)</p>'

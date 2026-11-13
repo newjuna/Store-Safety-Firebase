@@ -47,10 +47,17 @@ function sChk(){chkCss();if(chkDet){jobsMode='form';return chkDet}if(chkErr){con
  return h+'</div>'}
 /* ---------- S8-7 미제출 매장 (팀별) · 팀 담당자 메일 · 점장 안내문 (예전 「점장 안내문」 메뉴를 여기로 합침) ---------- */
 const chkMailOf=()=>{const M={};((chkB&&chkB.teams)||[]).forEach(([t,,m])=>{if(m)M[t]=m});return M};
-function chkTeamHtml(all){const M=chkMailOf(),G={};all.filter(x=>!x.s).forEach(x=>{(G[x.t]=G[x.t]||[]).push(x)});const K=Object.keys(G).sort((p,q)=>G[q].length-G[p].length||p.localeCompare(q,'ko',{numeric:true})),e=escapeText;
- return '<div class="card"><div class="vh-top" style="align-items:center"><h2 style="margin:0">미제출 매장 (팀별)</h2>'+(K.length?'<span class="shpill no">'+K.length+'팀</span>':'')+'</div>'
-  +(K.length?K.map(t=>{const L=G[t],d=L[0].dept;return '<button class="shli" type="button" onclick="chkGo('+e(JSON.stringify(['team',d,t]))+')"><span class="t"><b>'+e(t)+' · '+L.length+'곳</b><span class="muted">'+e(L.slice(0,3).map(x=>x.n).join(' · ')+(L.length>3?' 외 '+(L.length-3):''))+'</span></span>'
-   +'<span class="shpill'+(M[t]?'':' no')+'">'+(M[t]?'팀장 있음':'팀장 없음')+'</span></button>'}).join('')+'<p class="muted" style="margin:8px 0 0">팀장 = 조직도에서 「팀장」 스위치를 켠 사람 · 회사 이메일로 Teams 알림을 받습니다. (☰ 설정 → 조직도)</p>'+chkFriHtml()
+/* S8-19 미제출 매장 = 부서 → 팀 (부서는 접혀 있음 · 누르면 팀 줄 · 팀 줄 누르면 그 팀 매장 표) */
+let chkDpOpen=new Set();
+function chkTeamHtml(all){const M=chkMailOf(),e=escapeText,G={};all.filter(x=>!x.s).forEach(x=>{const d=G[x.dept]=G[x.dept]||{};(d[x.t]=d[x.t]||[]).push(x)});
+ const D=Object.keys(G).sort((p,q)=>(p==='부서 미지정')-(q==='부서 미지정')||p.localeCompare(q,'ko',{numeric:true})),K=D.reduce((n,d)=>n.concat(Object.keys(G[d])),[]);
+ const nS=all.filter(x=>!x.s).length,noB=K.filter(t=>!M[t]).length;
+ if(!document.getElementById('chkDpCss')){const s=document.createElement('style');s.id='chkDpCss';s.textContent='.chkdp{border-top:1px solid var(--line)}.chkdp:first-of-type{border-top:0}.chkdp>summary{display:flex;align-items:center;gap:8px;padding:10px 2px;cursor:pointer;list-style:none}.chkdp>summary::-webkit-details-marker{display:none}.chkdp>summary .ar{width:14px;color:var(--sub);font-size:11px;flex:none}.chkdp[open]>summary .ar{transform:rotate(90deg)}.chkdp>summary b{flex:1;min-width:0}.chktm{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;width:100%;border:0;border-top:1px dashed var(--line);background:none;font:inherit;color:inherit;text-align:left;padding:8px 2px 8px 22px;cursor:pointer}.chktm:hover{background:var(--bg)}.chktm .c{color:var(--accent);font-weight:700;white-space:nowrap}';document.head.appendChild(s)}
+ return '<div class="card"><div class="vh-top" style="align-items:center"><h2 style="margin:0">미제출 매장</h2>'+(nS?'<span class="shpill no">'+nS+'곳 · '+K.length+'팀</span>':'')+'</div>'
+  +(nS?(noB?'<p class="muted" style="margin:2px 0 6px;color:var(--accent)">팀장 없음 '+noB+'팀 (Teams 안 감)</p>':'')
+   +D.map(d=>{const T=Object.keys(G[d]).sort((p,q)=>G[d][q].length-G[d][p].length||p.localeCompare(q,'ko',{numeric:true})),n=T.reduce((a,t)=>a+G[d][t].length,0),nb=T.filter(t=>!M[t]).length;
+    return '<details class="chkdp"'+(chkDpOpen.has(d)||D.length===1?' open':'')+' ontoggle="this.open?chkDpOpen.add(\''+e(d).replace(/'/g,'')+'\'):chkDpOpen.delete(\''+e(d).replace(/'/g,'')+'\')"><summary><span class="ar">▶</span><b>'+e(d)+'</b><span class="muted" style="white-space:nowrap">'+n+'곳 · '+T.length+'팀</span>'+(nb?'<span class="shpill no">팀장 없음 '+nb+'</span>':'')+'</summary>'
+     +T.map(t=>'<button class="chktm" type="button" onclick="chkGo('+e(JSON.stringify(['team',d,t]))+')"><span>'+e(t)+'</span><span class="c">'+G[d][t].length+'곳</span><span class="shpill'+(M[t]?' ok':' no')+'">'+(M[t]?'팀장 있음':'팀장 없음')+'</span></button>').join('')+'</details>'}).join('')+'<p class="muted" style="margin:8px 0 0">팀장 = 조직도에서 「팀장」 스위치를 켠 사람 · 회사 이메일로 Teams 알림을 받습니다. (☰ 설정 → 조직도)</p>'+chkFriHtml()
    :'<p class="muted" style="margin:8px 0 0">이 주 미제출 매장이 없습니다.</p>')+'</div>'}
 /** S8-13 매주 금요일 09:30 자동 Teams 주간 현황 (Relay teamsFriday) · 마지막으로 보낸 기록 */
 function chkFriHtml(){const F=chkB&&chkB.fri;return '<p class="muted" style="margin:4px 0 0">매주 금요일 09:30 쯤 팀장에게 주간 현황 자동 알림'+(F&&F.at?' · 마지막 '+escapeText(fmtTime(F.at))+' · '+F.sent+'팀'+(F.fail?' (못 보냄 '+F.fail+')':''):' · 아직 보낸 기록 없음')+'</p>'}
