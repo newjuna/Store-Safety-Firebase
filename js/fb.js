@@ -6,7 +6,7 @@
  * - 아직 옮기지 않은 기능은 '아직 Firebase로 옮기지 않은 기능' 안내
  */
 (function () {
-  const VERSION = '26.11.13 S8-14';
+  const VERSION = '26.11.13 S8-16';
   /* ---------- 기존 Code.gs와 같은 기준값 ---------- */
   /* F2.1 업종 '오픈지원' 추가 (매장 오픈 인력 · 인력사무소형) · 인테리어(마감) = 지금까지의 공사 흐름 그대로 */
   const CFG = {
@@ -704,20 +704,20 @@
   }
   const ORG_CS_RE = /CS\s*팀/i;  // S8-9 CS팀 이름 (조직도에서 이 이름이 들어간 조직과 그 아래)
   /** S8-9 조직도 → STORES/depts 자동 맞춤
-   *  팀 = 매장 목록 「팀」과 이름이 같은 조직 · 부서 = 그 바로 위 조직 · 팀장 = 그 팀 구성원 중 직책에 「팀장」 + 회사메일 (없으면 예전 부서 관리에 적은 메일)
+   *  팀 = 매장 목록 「팀」과 이름이 같은 조직 · 부서 = 그 바로 위 조직 · 팀장 = 그 팀 구성원 중 직책에 「팀장」 + 회사메일 (없으면 빈칸 · S8-16)
    *  조직도에 그런 팀이 하나도 없으면 예전 부서 관리 내용을 그대로 둠 */
   async function orgDeptSync(a, units, mem) {
     const [L, D] = await Promise.all([storeDoc('list'), storeDoc('depts')]);
     const names = new Set(storeRows(L).filter((r) => !r[4]).map((r) => String(r[2] || '').trim()).filter(Boolean));
     const T = units.filter((u) => names.has(u.name));
     if (!T.length) return false;
-    const oldM = {}; ((D && Array.isArray(D.teams)) ? D.teams : []).forEach((x) => { if (x && x.t && x.m) oldM[String(x.t)] = String(x.m); });
+    /* S8-16 예전 부서 관리 메일을 이어 쓰던 부분 뺌 → 팀장 = 지금 조직도에 직책 「팀장」 + 회사메일로 있는 사람만 (없으면 빈칸 = 안 보냄) */
     const DU = new Map(), teams = [], seen = new Set();
     T.forEach((u) => {
       if (seen.has(u.name)) return; seen.add(u.name);
       const p = units.find((x) => x.id === u.parent); if (p) DU.set(p.id, p.name);
       const boss = mem.find((m) => m.unitId === u.id && /팀장/.test(m.title || '') && m.companyEmail && isInternalEmail(m.companyEmail));
-      teams.push({ t: u.name, d: p ? p.id : '', m: boss ? lower(boss.companyEmail) : (oldM[u.name] || '') });
+      teams.push({ t: u.name, d: p ? p.id : '', m: boss ? lower(boss.companyEmail) : '' });
     });
     const depts = [...DU].map(([id, name]) => ({ id, name }));
     /* S8-12 바뀐 게 없으면 안 씀 (조직도를 열 때마다 맞추므로) */
