@@ -6,7 +6,7 @@
  * - 아직 옮기지 않은 기능은 '아직 Firebase로 옮기지 않은 기능' 안내
  */
 (function () {
-  const VERSION = '26.10.19 S8-6';
+  const VERSION = '26.10.19 S8-7';
   /* ---------- 기존 Code.gs와 같은 기준값 ---------- */
   /* F2.1 업종 '오픈지원' 추가 (매장 오픈 인력 · 인력사무소형) · 인테리어(마감) = 지금까지의 공사 흐름 그대로 */
   const CFG = {
@@ -755,7 +755,7 @@
   API.storeBoard = async (a) => {
     await staffOnly(a);
     const [L, D] = await Promise.all([storeDoc('list'), storeDoc('depts')]);
-    return { stores: storeRows(L), at: (L && L.at) || '', by: (L && L.by) || '', depts: (D && Array.isArray(D.depts) ? D.depts : []), teams: (D && Array.isArray(D.teams) ? D.teams : []).map((x) => [String((x && x.t) || ''), String((x && x.d) || '')]), deptAt: (D && D.at) || '', canEdit: await isSafety(a) };  // teams: Firestore는 배열 안 배열을 못 담아서 {t, d}로 저장
+    return { stores: storeRows(L), at: (L && L.at) || '', by: (L && L.by) || '', depts: (D && Array.isArray(D.depts) ? D.depts : []), teams: (D && Array.isArray(D.teams) ? D.teams : []).map((x) => [String((x && x.t) || ''), String((x && x.d) || ''), String((x && x.m) || '')]), deptAt: (D && D.at) || '', canEdit: await isSafety(a) };  // teams: Firestore는 배열 안 배열을 못 담아서 {t, d}로 저장
   };
   /** 붙여넣기 반영: rows = [[코드, 매장명, 팀, 형태]] (대상 매장만) · 코드 기준 덮어쓰기 · 빠진 매장 = 목록에 없음 (다시 나오면 되살림) */
   API.storeSave = async (a, rows) => {
@@ -784,7 +784,10 @@
       ids.add(id); names.add(name); D.push({ id, name });
     });
     const T = [], tseen = new Set();
-    (Array.isArray(teams) ? teams : []).slice(0, 2000).forEach((x) => { const t = tidy(x && x[0], 40), id = String((x && x[1]) || ''); if (t && ids.has(id) && !tseen.has(t)) { tseen.add(t); T.push({ t, d: id }); } });
+    (Array.isArray(teams) ? teams : []).slice(0, 2000).forEach((x) => {
+      const t = tidy(x && x[0], 40), id = String((x && x[1]) || ''), m = lower(tidy(x && x[2], 120));  // S8-7 m = 팀 담당자 회사메일 (미제출 알림)
+      if (m && !isInternalEmail(m)) fail(t + ' 담당자 메일은 회사메일(@' + CFG.APPROVER_DOMAINS.join(', @') + ')만 쓸 수 있습니다.');
+      if (t && (ids.has(id) || m) && !tseen.has(t)) { tseen.add(t); T.push({ t, d: ids.has(id) ? id : '', m }); } });
     await db.collection('STORES').doc('depts').set({ depts: D, teams: T, at: now(), by: a.email });
     audit(a, '', 'DEPT_SAVE', D.length + '개 부서 · ' + T.length + '개 팀');
     return API.storeBoard(a);
@@ -797,9 +800,13 @@
     const thisWeek = (() => { const d = new Date(today() + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); })();
     const start = (C && C.exists && C.data().startWeek) || thisWeek;
     const W = {}; (await db.collection('WEEKSUM').where('week', '>=', start).get()).docs.forEach((d) => { const x = d.data(); if (x.week && x.week <= thisWeek) W[x.week] = x.s || {}; });
-    return { stores: storeRows(L).filter((r) => !r[4]), depts: (D && Array.isArray(D.depts) ? D.depts : []), teams: (D && Array.isArray(D.teams) ? D.teams : []).map((x) => [String((x && x.t) || ''), String((x && x.d) || '')]), start, thisWeek, weeks: W };
+    return { stores: storeRows(L).filter((r) => !r[4]), depts: (D && Array.isArray(D.depts) ? D.depts : []), teams: (D && Array.isArray(D.teams) ? D.teams : []).map((x) => [String((x && x.t) || ''), String((x && x.d) || ''), String((x && x.m) || '')]), start, thisWeek, weeks: W };
   };
   API.scCounts = async (a) => { await staffOnly(a); return relay('scCounts', {}, true); };
+  /* S8-7 도급인 화면 개편: 오늘 할 일 · 팀 담당자 미제출 메일 · CS 담당자 직접 등록 */
+  API.dashSum = async (a) => { await staffOnly(a); return relay('dashSum', {}, true); };
+  API.chkMail = async (a, week) => relay('chkMail', { week: tidy(week, 10) }, false, 180000);
+  API.csAdd = async (a, name, email) => relay('csAdd', { name: tidy(name, 30), email: tidy(email, 120) });
   API.ckGet = async (a) => { await staffOnly(a); return relay('ckGet', {}, true); };
   API.ckSave = async (a, c) => relay('ckSave', { json: JSON.stringify(c || {}) });
   API.ckGuide = async (a, part, id, kind, f) => relay('ckGuide', { part: tidy(part, 2), id: tidy(id, 30), kind: tidy(kind, 2), f: f && f.data ? f : null }, false, 120000);
