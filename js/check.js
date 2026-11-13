@@ -31,10 +31,10 @@ function sChk(){chkCss();if(chkDet){jobsMode='form';return chkDet}if(chkErr){con
   +'<div class="chknum"><div><b>'+S.n+'</b><span>매장</span></div><div><b>'+S.sub+'</b><span>제출 '+chkPct(S.sub,S.n)+'</span></div><div class="'+(S.n-S.sub?'r':'')+'"><b>'+(S.n-S.sub)+'</b><span>미제출</span></div><div class="'+(S.late?'r':'')+'"><b>'+S.late+'</b><span>밀린 주 있음</span></div></div>'
   +'<div class="chknum" style="grid-template-columns:repeat(3,1fr)"><div class="'+(S.c?'r':'')+'"><b>'+S.c+'</b><span>공통 미흡</span></div><div class="'+(S.d?'r':'')+'"><b>'+S.d+'</b><span>도급 미흡</span></div><div class="'+(S.f?'r':'')+'"><b>'+S.f+'</b><span>집중 위험</span></div></div>'
   +(chkCnt&&lv==='all'?'<div class="muted" style="margin-top:8px">미조치 전체 · 공통 '+chkCnt.COMMON+' · 도급 '+chkCnt.CONTRACT+' · 집중 '+chkCnt.FOCUS+'</div>':'')
-  +(B.stores.length?'<div class="row" style="gap:6px;margin-top:10px"><button class="button ghost" type="button" style="flex:1" onclick="chkCopy()">미제출 복사</button><button class="button" type="button" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="chkMailGo()"'+(S.n-S.sub?'':' disabled')+'><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3 3 10.5l7 2.5 2.5 7z"/><path d="M21 3 10 13"/></svg>팀장에게 Teams 알림</button></div>':'')+'</div>';
+  +(B.stores.length?'<div class="row" style="gap:6px;margin-top:10px"><button class="button ghost" type="button" style="flex:1" onclick="chkCopy()">미제출 복사</button><button class="button" type="button" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="chkMailGo()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3 3 10.5l7 2.5 2.5 7z"/><path d="M21 3 10 13"/></svg>팀장에게 Teams 알림</button></div>'+chkFriHtml():'')+'</div>';
  if(lv==='all')h=chkShopHtml()+h;  /* S8-8 점장 안내문 = 맨 위 */
  if(!B.stores.length)return h+'<div class="card"><p class="muted" style="margin:0">매장 목록을 먼저 반영해 주세요. (☰ 설정 → 매장 목록)</p></div>';
- if(lv==='all')h+=chkTeamHtml(all);
+ /* S8-21 「미제출 매장」 카드 뺌 (아래 부서 · 팀별 표로 충분 · 팀장 있음/없음 숫자가 헷갈림) · chkTeamHtml 코드는 남겨 둠 */
  h+='<div class="card"><h2 style="margin:0 0 6px">부서 · 팀별</h2><div class="chkcrumb">'+(lv==='all'?'<b>전체</b>':'<button type="button" onclick="chkGo([\'all\'])">전체</button> ›')+(lv!=='all'?(lv==='dept'?'<b>'+escapeText(a)+'</b>':'<button type="button" onclick="chkGo([\'dept\',\''+escapeText(a)+'\'])">'+escapeText(a)+'</button> › <b>'+escapeText(b)+'</b>'):'')+'</div>';
  const grp=(key,next)=>{const G={};L.forEach(x=>{(G[x[key]]=G[x[key]]||[]).push(x)});const K=Object.keys(G).sort((p,q)=>(p==='부서 미지정')-(q==='부서 미지정')||p.localeCompare(q,'ko',{numeric:true}));
   return '<table class="rtable chkt" style="margin-top:10px"><tr><th>'+(key==='dept'?'부서':'팀')+'</th><th class="n">매장</th><th class="n">제출</th><th class="n">미제출</th><th class="n">공통</th><th class="n">도급</th><th class="n">위험</th></tr>'
@@ -64,16 +64,31 @@ function chkFriHtml(){const F=chkB&&chkB.fri;return '<p class="muted" style="mar
 async function chkMailGo(){if(!chkB)return;
  /* S8-12 조직도에서 팀장을 바꾼 뒤에도 옛 화면 정보로 막지 않게 → 보내기 전에 팀장 정보 다시 읽음 */
  try{const nb=await call('checkBoard');chkB={...chkB,depts:nb.depts,teams:nb.teams}}catch(e){}
- const M=chkMailOf(),G={};chkRows().filter(x=>!x.s).forEach(x=>{G[x.t]=(G[x.t]||0)+1});const K=Object.keys(G),yes=K.filter(t=>M[t]),no=K.filter(t=>!M[t]);
- if(!K.length){msg('미제출 매장이 없습니다.');return}if(!yes.length){msg('팀장이 없습니다. ☰ 설정 → 조직도에서 사람을 눌러 「팀장」을 켜 주세요. (회사 이메일 필요)');return}
- if(!await askOk('팀장에게 Teams 알림',chkWl(chkW)+' (월) 주 미제출 매장을 팀장에게 Teams로 알립니다.\n\n보냄 '+yes.length+'팀 · '+yes.slice(0,6).map(t=>t+' '+G[t]+'곳').join(', ')+(yes.length>6?' …':'')+(no.length?'\n팀장 없음(안 보냄) '+no.length+'팀 · '+no.slice(0,4).join(', '):''),'보내기'))return;
- try{const r=await call('chkMail',chkW);const bad=r.teams.filter(x=>!x.ok).length;msg(r.none?'미제출 매장이 없습니다.':'Teams 알림 '+r.sent+'팀'+(bad?' · 못 보냄 '+bad+'팀 (Teams 연결 확인)':'')+(r.noMail.length?' · 팀장 없음 '+r.noMail.length+'팀':''))}catch(e){}}
+ /* S8-22 금요일 자동 알림과 같은 기준 = 그 달 1주 ~ 고른 주 중 X가 있는 매장 → 고른 주만 보고 막지 않음 (서버가 판단) */
+ if(!Object.keys(chkMailOf()).length){msg('팀장이 지정된 팀이 없습니다. (☰ 설정 → 조직도 → 「팀장」 켜기)');return}
+ /* S8-21 문구 짧게: 묻기 = 「11월 2주차 미제출 매장을 …」 한 줄 · 결과 = 보냈습니다 / 못 보낸 팀장만 */
+ if(!await askOk('팀장에게 Teams 알림',chkWkName(chkW)+' 미제출 매장을 팀장에게 Teams로 알립니다.','보내기'))return;
+ try{const r=await call('chkMail',chkW),bad=(r.teams||[]).filter(x=>!x.ok);
+  if(r.none){msg('이 달 미제출 매장이 없습니다.');return}if(!r.teams.length){msg('미제출 매장이 있는 팀에 팀장이 없습니다. (☰ 설정 → 조직도 → 「팀장」 켜기)');return}
+  if(bad.length)popup('일부 못 보냄','보냄 '+r.sent+'팀\n\n못 보냄: '+bad.map(x=>x.team+' 팀장').join(', '),'확인');else msg('보냈습니다. ('+r.sent+'팀)')}catch(e){}}
+/** S8-21 주 이름 = 그 달 몇째 주 (그 달에 월요일이 있는 주 · 점장 화면과 같은 기준) · 2026-11-09 → 11월 2주차 */
+const chkWkName=w=>w?Number(w.slice(5,7))+'월 '+(Math.floor((Number(w.slice(8,10))-1)/7)+1)+'주차':'';
 function chkShopHtml(){if(typeof sShopFly!=='function')return '';return sShopFly()}
 function chkWeek(n){if(!chkB)return;const w=chkAdd(chkW,n);if(w<chkB.start||w>chkB.thisWeek)return;chkW=w;renderJobs()}
 function chkGo(lv){chkLv=lv;renderJobs();window.scrollTo(0,0)}
-function chkCopy(){const [lv,a,b]=chkLv,L=chkRows().filter(x=>!x.s&&(lv==='all'||x.dept===a)&&(lv!=='team'||x.t===b));if(!L.length){msg('미제출 매장이 없습니다.');return}
- const t=['매장\t매장명\t팀\t부서\t밀린 주'].concat(L.map(x=>[x.c,x.n,x.t,x.dept,x.owed].join('\t'))).join('\n');
- (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>msg('미제출 '+L.length+'곳을 복사했습니다. 엑셀에 붙여넣으세요.'),()=>prompt('복사해 주세요.',t))}
+/** S8-22 미제출 복사 = Teams [표 복사]와 같은 표 (팀마다 · 탭 구분 · 「1주 2주 … 매장명」 · 그 달 1주 ~ 고른 주 · O 제출 X 미제출 - 시작 전 · X 있는 매장만)
+ *  지금 보는 범위만 (전체 / 부서 / 팀) · Relay chkReport_ 와 같은 기준 */
+function chkCopyText(){const B=chkB,[lv,a,b]=chkLv,ym=chkW.slice(0,7),WK=[];
+ for(let d=1;d<=7;d++){const w=ym+'-0'+d;if(new Date(w+'T00:00:00Z').getUTCDay()===1){for(let x=w;x.slice(0,7)===ym&&x<=chkW;x=chkAdd(x,7))WK.push(x);break}}
+ if(!WK.length)WK.push(chkW);
+ const t=new Date(),day=('0'+(t.getMonth()+1)).slice(-2)+'.'+('0'+t.getDate()).slice(-2),G={};
+ chkRows().filter(x=>(lv==='all'||x.dept===a)&&(lv!=='team'||x.t===b)).forEach(x=>{const c=WK.map(w=>(B.weeks[w]||{})[x.c]?'O':w<B.start?'-':'X');if(c.includes('X'))(G[x.t]=G[x.t]||[]).push({n:x.n||x.c,c})});
+ const K=Object.keys(G).sort((p,q)=>p.localeCompare(q,'ko',{numeric:true}));let n=0;
+ const txt=K.map(k=>{const R=G[k].sort((p,q)=>p.n.localeCompare(q.n,'ko'));n+=R.length;
+  return ['['+k+'] '+Number(ym.slice(5))+'월 미제출 ('+day+' 기준)',WK.map((w,i)=>(i+1)+'주').concat('매장명').join('\t')].concat(R.map(x=>x.c.concat(x.n).join('\t')),'O 제출 · X 미제출').join('\n')}).join('\n\n');
+ return {txt,teams:K.length,n}}
+function chkCopy(){const o=chkCopyText();if(!o.n){msg('이 달 미제출 매장이 없습니다.');return}
+ (navigator.clipboard?navigator.clipboard.writeText(o.txt):Promise.reject()).then(()=>msg('미제출 표를 복사했습니다. ('+(o.teams>1?o.teams+'팀 · ':'')+o.n+'곳)'),()=>prompt('복사해 주세요.',o.txt))}
 async function chkOpen(code){const id=code+'_'+chkW;let d;try{d=await call('scDetail',code,id)}catch(e){return}
  const o=shDetailHtml(d,'chkBack()','← 매장 점검','shEditOpen(\''+escapeText(code)+'\',\''+escapeText(id)+'\')');chkDet=o.html;renderJobs();window.scrollTo(0,0);o.pics.forEach(([k,fid,ref])=>shPicLoad(k,code,ref,fid))}  // S8-9 [고치기]
 /** S8-9 고친 뒤: 현황 다시 읽고 그 점검을 다시 보여 줌 */
