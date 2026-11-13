@@ -6,7 +6,7 @@
  * - 아직 옮기지 않은 기능은 '아직 Firebase로 옮기지 않은 기능' 안내
  */
 (function () {
-  const VERSION = '26.11.13 S8-12';
+  const VERSION = '26.11.13 S8-13';
   /* ---------- 기존 Code.gs와 같은 기준값 ---------- */
   /* F2.1 업종 '오픈지원' 추가 (매장 오픈 인력 · 인력사무소형) · 인테리어(마감) = 지금까지의 공사 흐름 그대로 */
   const CFG = {
@@ -845,11 +845,12 @@
    *  WEEKSUM/{월요일} = { week, s: { 매장코드: {c 공통미흡, d 도급미흡, f 집중위험, r 등록일, l 밀린 주로 냄} } } · 주 1개 = 읽기 1번 */
   API.checkBoard = async (a) => {
     await staffOnly(a);
-    const [L, D, C] = await Promise.all([storeDoc('list'), storeDoc('depts'), db.collection('SETTINGS').doc('storeCheck').get().catch(() => null)]);
+    const [L, D, C, FR] = await Promise.all([storeDoc('list'), storeDoc('depts'), db.collection('SETTINGS').doc('storeCheck').get().catch(() => null), db.collection('SETTINGS').doc('teamsFriday').get().catch(() => null)]);  // S8-13 금요일 자동 알림 기록
     const thisWeek = (() => { const d = new Date(today() + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); })();
     const start = (C && C.exists && C.data().startWeek) || thisWeek;
     const W = {}; (await db.collection('WEEKSUM').where('week', '>=', start).get()).docs.forEach((d) => { const x = d.data(); if (x.week && x.week <= thisWeek) W[x.week] = x.s || {}; });
-    return { stores: storeRows(L).filter((r) => !r[4]), depts: (D && Array.isArray(D.depts) ? D.depts : []), teams: (D && Array.isArray(D.teams) ? D.teams : []).map((x) => [String((x && x.t) || ''), String((x && x.d) || ''), String((x && x.m) || '')]), start, thisWeek, weeks: W };
+    return { stores: storeRows(L).filter((r) => !r[4]), depts: (D && Array.isArray(D.depts) ? D.depts : []), teams: (D && Array.isArray(D.teams) ? D.teams : []).map((x) => [String((x && x.t) || ''), String((x && x.d) || ''), String((x && x.m) || '')]), start, thisWeek, weeks: W,
+      fri: FR && FR.exists ? { week: FR.data().week || '', at: FR.data().at || '', sent: FR.data().sent || 0, fail: FR.data().fail || 0 } : null };
   };
   API.scCounts = async (a) => { await staffOnly(a); return relay('scCounts', {}, true); };
   /* S8-7 도급인 화면 개편: 오늘 할 일 · 팀 담당자 미제출 메일 · CS 담당자 직접 등록 */
