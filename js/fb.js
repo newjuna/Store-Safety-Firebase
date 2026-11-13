@@ -6,7 +6,7 @@
  * - 아직 옮기지 않은 기능은 '아직 Firebase로 옮기지 않은 기능' 안내
  */
 (function () {
-  const VERSION = '26.11.13 S8-19';
+  const VERSION = '26.11.13 S8-20';
   /* ---------- 기존 Code.gs와 같은 기준값 ---------- */
   /* F2.1 업종 '오픈지원' 추가 (매장 오픈 인력 · 인력사무소형) · 인테리어(마감) = 지금까지의 공사 흐름 그대로 */
   const CFG = {
@@ -669,11 +669,8 @@
     let mem = docs(await db.collection('ORG_MEMBERS').get());
     /* S8-9 처음 한 번: 예전 부서 관리 → 조직도 */
     const od = await db.collection('SETTINGS').doc('org').get().catch(() => null);
-    if (od && od.exists && !od.data().deptImported) {
-      const U = await orgDeptImport(units).catch(() => null); if (U) units = U;
-      await db.collection('SETTINGS').doc('org').set({ units, deptImported: now(), updatedAt: now(), updatedBy: a.email }, { merge: true });
-      if (U) audit(a, '', 'ORG_DEPT_IMPORT', U.length + '개 조직');
-    }
+    /* S8-20 자동으로 옮기기 없앰 (경영진 아래에 부서 · 팀이 생기던 원인) · 조직은 조직도에서만 만듦 */
+    if (od && od.exists && !od.data().deptImported) await db.collection('SETTINGS').doc('org').set({ deptImported: 'OFF', updatedAt: now(), updatedBy: a.email }, { merge: true });
     /* S8-12 조직도를 열 때마다 부서 · 팀 · 팀장(Teams 알림)을 매장 점검 쪽(STORES/depts)에 맞춤
      *  (예전 화면으로 조직도를 만들었거나, 저장 때 맞추지 못한 경우도 여기서 다시 맞춰짐) */
     ORG_SYNC_ERR = ''; await orgDeptSync(a, units, mem).catch((e) => { ORG_SYNC_ERR = (e && e.message) || '알 수 없는 오류'; console.log('부서 맞추기 실패', ORG_SYNC_ERR); });
@@ -687,7 +684,7 @@
     }
     const P = await principal(true), pkOf = (id) => PR_PK.find((k) => P[k] && P[k].memberId === id) || '';
     const D = await storeDoc('depts').catch(() => null), sent = {}; ((D && D.teams) || []).forEach((x) => { if (x && x.t) sent[x.t] = x.m || ''; });  // S8-18 지금 매장 점검 · Teams가 쓰는 팀장 메일
-    return { me: a.email, units, members: mem.map((m) => ({ ...memView(m), pk: pkOf(m.id), leads: memLeads(m, units), cs: memCs(m, units) })).sort((x, y) => x.name.localeCompare(y.name, 'ko')), principal: P, stTeams: await orgStoreTeams(), sent, syncErr: ORG_SYNC_ERR };  // S8-9 매장 목록 팀 → 매장 수
+    return { me: a.email, units, members: mem.map((m) => ({ ...memView(m), pk: pkOf(m.id), leads: memLeads(m, units), cs: memCs(m, units) })).sort((x, y) => x.name.localeCompare(y.name, 'ko')), principal: P, stTeams: await orgStoreTeams(), sent, syncErr: ORG_SYNC_ERR, imported: orgImported(units, mem) };  // S8-9 매장 목록 팀 → 매장 수
   };
   let ORG_SYNC_ERR = '';  // S8-18 매장 점검 쪽에 못 맞췄을 때 이유 (화면에 빨간 안내)
   /** 구성원 → 로그인 명단(STAFF) 맞추기 */
@@ -734,7 +731,31 @@
     audit(a, '', 'ORG_DEPT_SYNC', depts.length + '개 부서 · ' + teams.length + '개 팀 · 팀장 ' + teams.filter((x) => x.m).length);
     return true;
   }
-  /** S8-9 처음 한 번: 예전 부서 관리(부서 · 팀)를 조직도로 옮김 (같은 이름 조직이 이미 있으면 그대로 씀) */
+  /** S8-20 예전에 자동으로 옮겨진 조직 찾기: 맨 위 조직 바로 아래의 종류 「부」 + 그 아래가 모두 「부 · 팀」 (화면에서 만든 조직은 종류가 비어 있음) · 기본 조직(ORG_SEED)은 빼고
+   *  → [{id, name, path, n(사람 수)}] (사람이 있으면 지우지 않음) */
+  function orgImported(units, mem) {
+    /* 기본 조직(경영진 · 안전보건팀 등)은 절대 안 건드림 · 자동으로 옮길 때 만든 조직 = ID가 U-+16진수 8자리 (rand8) + 종류 부 · 팀 */
+    const seed = new Set(ORG_SEED.map((s) => (Array.isArray(s) ? s[0] : s && s.id))), auto = (u) => /^U-[0-9A-F]{8}$/.test(u.id) && !seed.has(u.id) && !/안전보건/.test(u.name);
+    const roots = new Set(units.filter((u) => !u.parent).map((u) => u.id)), out = [];
+    units.filter((u) => u.kind === '부' && roots.has(u.parent) && auto(u)).forEach((d) => {
+      const S = [d], add = (p) => units.filter((u) => u.parent === p).forEach((u) => { S.push(u); add(u.id); }); add(d.id);
+      if (S.some((u) => !['부', '팀'].includes(u.kind) || !auto(u))) return;
+      S.forEach((u) => out.push({ id: u.id, name: u.name, path: orgPathOf(units, u.id).join(' › '), n: mem.filter((m) => m.unitId === u.id).length, top: u.id === d.id }));
+    });
+    return out;
+  }
+  /** S8-20 [지우기] 자동으로 옮겨진 조직 중 사람이 없는 것만 지움 (사람이 있는 부서 · 팀은 남김) */
+  API.orgImportClean = async (a) => {
+    orgGate(a);
+    const units = (await orgUnits()) || ORG_SEED, mem = docs(await db.collection('ORG_MEMBERS').get()), I = orgImported(units, mem);
+    /* 사람이 있는 조직과 그 위 조직은 남김 · 나머지(사람 없음)만 지움 */
+    const keep = new Set(); I.filter((x) => x.n).forEach((x) => { let u = units.find((v) => v.id === x.id), g = 0; while (u && g++ < 20) { keep.add(u.id); u = units.find((v) => v.id === u.parent); } });
+    const del = new Set(I.filter((x) => !keep.has(x.id)).map((x) => x.id));
+    if (!del.size) fail('지울 조직이 없습니다.');
+    audit(a, '', 'ORG_IMPORT_CLEAN', [...del].length + '개 · ' + I.filter((x) => del.has(x.id)).map((x) => x.name).join(', ').slice(0, 300));
+    return API.orgSaveUnits(a, units.filter((u) => !del.has(u.id)));
+  };
+  /** S8-9 처음 한 번: 예전 부서 관리(부서 · 팀)를 조직도로 옮김 (S8-20부터 안 씀 · 남겨만 둠) */
   async function orgDeptImport(units) {
     const D = await storeDoc('depts'); if (!D || !Array.isArray(D.depts) || !D.depts.length || D.from === 'ORG') return null;
     const U = units.map((u) => ({ ...u })), root = U.find((u) => !u.parent), byName = (n) => U.find((u) => u.name === n), DM = {}; let add = 0;
