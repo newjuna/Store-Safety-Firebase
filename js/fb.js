@@ -6,7 +6,7 @@
  * - 아직 옮기지 않은 기능은 '아직 Firebase로 옮기지 않은 기능' 안내
  */
 (function () {
-  const VERSION = '26.11.13 S8-11';
+  const VERSION = '26.11.13 S8-12';
   /* ---------- 기존 Code.gs와 같은 기준값 ---------- */
   /* F2.1 업종 '오픈지원' 추가 (매장 오픈 인력 · 인력사무소형) · 인테리어(마감) = 지금까지의 공사 흐름 그대로 */
   const CFG = {
@@ -668,8 +668,11 @@
     if (od && od.exists && !od.data().deptImported) {
       const U = await orgDeptImport(units).catch(() => null); if (U) units = U;
       await db.collection('SETTINGS').doc('org').set({ units, deptImported: now(), updatedAt: now(), updatedBy: a.email }, { merge: true });
-      if (U) { audit(a, '', 'ORG_DEPT_IMPORT', U.length + '개 조직'); await orgDeptSync(a, units, mem).catch(() => {}); }
+      if (U) audit(a, '', 'ORG_DEPT_IMPORT', U.length + '개 조직');
     }
+    /* S8-12 조직도를 열 때마다 부서 · 팀 · 팀장(Teams 알림)을 매장 점검 쪽(STORES/depts)에 맞춤
+     *  (예전 화면으로 조직도를 만들었거나, 저장 때 맞추지 못한 경우도 여기서 다시 맞춰짐) */
+    await orgDeptSync(a, units, mem).catch((e) => console.log('부서 맞추기 실패', e && e.message));
     if (!mem.length) {  // 처음 한 번: 예전 직원 명단 + 도급인 책임자로 채움 (소속은 부서 이름이 같은 팀으로)
       const st = docs(await db.collection('STAFF').get()), P = await principal(true), B = db.batch(), byName = (n) => (units.find((u) => u.name === String(n || '').trim()) || {}).id || '';
       const add = (o) => { const id = 'M-' + rand8(); B.set(db.collection('ORG_MEMBERS').doc(id), { id, ...o, createdAt: now(), createdBy: a.email }); mem.push({ id, ...o }); };
@@ -716,7 +719,11 @@
       const boss = mem.find((m) => m.unitId === u.id && /팀장/.test(m.title || '') && m.companyEmail && isInternalEmail(m.companyEmail));
       teams.push({ t: u.name, d: p ? p.id : '', m: boss ? lower(boss.companyEmail) : (oldM[u.name] || '') });
     });
-    await db.collection('STORES').doc('depts').set({ depts: [...DU].map(([id, name]) => ({ id, name })), teams, at: now(), by: a.email, from: 'ORG' });
+    const depts = [...DU].map(([id, name]) => ({ id, name }));
+    /* S8-12 바뀐 게 없으면 안 씀 (조직도를 열 때마다 맞추므로) */
+    if (D && D.from === 'ORG' && JSON.stringify(D.depts || []) === JSON.stringify(depts) && JSON.stringify((D.teams || []).map((x) => ({ t: x.t, d: x.d, m: x.m }))) === JSON.stringify(teams)) return false;
+    await db.collection('STORES').doc('depts').set({ depts, teams, at: now(), by: a.email, from: 'ORG' });
+    audit(a, '', 'ORG_DEPT_SYNC', depts.length + '개 부서 · ' + teams.length + '개 팀 · 팀장 ' + teams.filter((x) => x.m).length);
     return true;
   }
   /** S8-9 처음 한 번: 예전 부서 관리(부서 · 팀)를 조직도로 옮김 (같은 이름 조직이 이미 있으면 그대로 씀) */
