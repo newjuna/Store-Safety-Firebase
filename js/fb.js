@@ -6,7 +6,7 @@
  * - 아직 옮기지 않은 기능은 '아직 Firebase로 옮기지 않은 기능' 안내
  */
 (function () {
-  const VERSION = '26.11.13 S8-16';
+  const VERSION = '26.11.13 S8-17';
   /* ---------- 기존 Code.gs와 같은 기준값 ---------- */
   /* F2.1 업종 '오픈지원' 추가 (매장 오픈 인력 · 인력사무소형) · 인테리어(마감) = 지금까지의 공사 흐름 그대로 */
   const CFG = {
@@ -771,7 +771,8 @@
     if (bad.length) fail('다음 항목을 확인해 주세요:\n- ' + bad.join('\n- '));
     m.role = orgRoleOf(units, m.unitId, m.gmail, a);
     if (m.gmail === a.email && m.role !== 'SAFETY') fail('본인 계정은 안전보건팀 아래에 두어야 합니다.');
-    const all = docs(await db.collection('ORG_MEMBERS').get()); if (m.gmail && all.some((x) => x.gmail === m.gmail && x.id !== id)) fail('이미 다른 사람에 등록된 로그인 Gmail입니다.');
+    const all = docs(await db.collection('ORG_MEMBERS').get()), dup = m.gmail && all.find((x) => x.gmail === m.gmail && x.id !== id);
+    if (dup) { const du = units.find((u) => u.id === dup.unitId); fail('이미 「' + (dup.name || '이름 없음') + ' ' + (dup.title || '') + '」(' + (du ? orgPathOf(units, du.id).join(' › ') : '소속 없음') + ')에 등록된 로그인 Gmail입니다.\n조직도 위 검색 칸에서 「' + (dup.name || m.gmail) + '」을 찾아 고치거나 삭제해 주세요.'); }  // S8-17 누구에게 있는지 알려 줌
     const old = id ? all.find((x) => x.id === id) : null; if (id && !old) fail('고칠 사람을 찾을 수 없습니다. 화면을 새로 고쳐 주세요.');
     const mid = id || 'M-' + rand8();
     await db.collection('ORG_MEMBERS').doc(mid).set({ id: mid, ...m, createdAt: (old && old.createdAt) || now(), createdBy: (old && old.createdBy) || a.email, updatedAt: now(), updatedBy: a.email });
