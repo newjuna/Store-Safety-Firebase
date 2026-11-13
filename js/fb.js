@@ -6,7 +6,7 @@
  * - 아직 옮기지 않은 기능은 '아직 Firebase로 옮기지 않은 기능' 안내
  */
 (function () {
-  const VERSION = '26.11.13 S8-22';
+  const VERSION = '26.11.13 S8-23';
   /* ---------- 기존 Code.gs와 같은 기준값 ---------- */
   /* F2.1 업종 '오픈지원' 추가 (매장 오픈 인력 · 인력사무소형) · 인테리어(마감) = 지금까지의 공사 흐름 그대로 */
   const CFG = {
@@ -342,7 +342,18 @@
     let r;
     if (isMaster(a)) { await seedStaffIfEmpty(a); r = { ...(s || { name: '마스터', dept: '시스템 관리', companyEmail: '', loginEmail: a.email, active: 'Y' }), role: 'SAFETY', master: true }; }
     else r = s && String(s.active).trim().toUpperCase() !== 'N' ? s : null;
+    /* S8-23 소속만 보기(팀장 · 파트장 · 부서장 = role TEAM) = 직원 아님 → 매장 점검(자기 소속)만 · teamOf 로 따로 확인 */
+    if (r && !r.master && r.role === 'TEAM') { if (memo) memo.team = r; r = null; }
     if (memo) memo.staff = r;
+    return r;
+  }
+  /** S8-23 소속만 보기 계정 { teams: 볼 수 있는 팀 이름들, leadTeams: 팀장인 팀 } · 아니면 null */
+  async function teamOf(a, memo) {
+    if (a.mode === 'VENDOR') return null;
+    if (memo && 'team' in memo) return memo.team;
+    let s = null; try { const d = await db.collection('STAFF').doc(a.email).get(); if (d.exists) s = d.data(); } catch (e) { if (e.code !== 'permission-denied') throw e; }
+    const r = s && s.role === 'TEAM' && String(s.active).trim().toUpperCase() !== 'N' && !MASTERS.has(a.email) ? s : null;
+    if (memo) memo.team = r;
     return r;
   }
   const isSafety = async (a, memo) => (await staffOf(a, memo))?.role === 'SAFETY';
@@ -515,7 +526,7 @@
     return { profiles, files, subs, forms, tpl: activeTemplates(tpls), openJobs: js.filter((j) => j && j.status !== 'ENDED').length };
   }
   API.portalData = async (a) => {
-    const memo = {}, st = await staffOf(a, memo), b = await myCompany(a), verified = !!b && b.status === 'VERIFIED';
+    const memo = {}, st = await staffOf(a, memo), tm = st ? null : await teamOf(a, memo), b = await myCompany(a), verified = !!b && b.status === 'VERIFIED';
     const [isApprover, V, bd, mg, sm0] = await Promise.all([
       isInternalEmail(a.email) ? db.collection('COMPANIES').where('approverEmail', '==', a.email).limit(1).get().then((s) => !s.empty) : false,
       verified ? vendorBundle(a, b) : null, badges(a, memo),
@@ -543,10 +554,13 @@
       email: a.email, isApprover, correctionNote: b && b.submissionStatus === 'CORRECTION' ? b.correctionNote || '' : '', openJobs: V ? V.openJobs : null,
       staff: st ? { name: st.name, role: st.role, cs: st.cs === 'Y' && st.role !== 'SAFETY' /* S7 CS팀 담당자 = 합동점검만 */, roleLabel: (st.master ? '마스터 · ' : '') + (STAFF_ROLES[st.role] || st.role), master: !!st.master,
         /* F2.6 볼 수 있는 화면: 마스터 · 안전보건팀 = 둘 다 (들어갈 때 고름) · 그 외 = 조직도 담당 (비어 있으면 인테리어) */
-        scopes: st.master || st.role === 'SAFETY' ? Object.keys(SCOPES) : (cleanScopes(st.scopes).length ? cleanScopes(st.scopes) : ['INT']), scopeLabels: SCOPES } : null,
+        scopes: st.master || st.role === 'SAFETY' ? Object.keys(SCOPES) : (cleanScopes(st.scopes).length ? cleanScopes(st.scopes) : ['INT']), scopeLabels: SCOPES }
+        /* S8-23 소속만 보기 = 「매장 점검」 메뉴만 (팀장 = [Teams로 공유하기] · 그 외 = [미제출 복사]만) */
+        : tm ? { name: tm.name || '', role: 'TEAM', cs: false, roleLabel: '매장 점검 · ' + (tm.dept || '소속'), master: false, scopes: [], scopeLabels: SCOPES,
+          team: { teams: Array.isArray(tm.teams) ? tm.teams.map(String) : [], lead: Array.isArray(tm.leadTeams) ? tm.leadTeams.map(String) : [], unit: tm.dept || '' } } : null,
       isMaster: isMaster(a), testSkipFiles: CFG.TEST_SKIP_FILES,
       company: publicCompany(b),
-      role: st ? st.role : 'VENDOR', industries: CFG.INDUSTRIES, fields: FIELDS, stepNames: STEP_NAMES, industryFields: (b && INDUSTRY_FIELDS[b.industry]) || [],
+      role: st ? st.role : tm ? 'TEAM' : 'VENDOR', industries: CFG.INDUSTRIES, fields: FIELDS, stepNames: STEP_NAMES, industryFields: (b && INDUSTRY_FIELDS[b.industry]) || [],
       steps, documents, docBoard, forms, appVersion: VERSION, mode: a.mode,
       sm: sm0.some((s) => s.status === 'ACTIVE') ? { name: sm0.find((s) => s.status === 'ACTIVE').name, n: sm0.filter((s) => s.status === 'ACTIVE').length } : null,  // F2.3 현장관리자 (끝난 오픈 매장은 smHome이 거름)
       mgr: mg.length ? { name: (mg.find((m) => m.status === 'ACTIVE') || mg[0]).name, active: mg.some((m) => m.status === 'ACTIVE'), companies: mg.map((m) => ({ company: m.company, status: m.status })) } : null,
@@ -663,6 +677,27 @@
    *  아직 스위치로 저장한 적 없는 사람(leads · cs 칸 없음) = 예전 규칙: 직책에 「팀장」→ 자기 팀 · CS팀 조직 + Gmail → CS 담당 */
   const memLeads = (m, units) => (Array.isArray(m.leads) ? m.leads.map(String) : (/팀장/.test(m.title || '') && m.unitId ? [m.unitId] : [])).filter((id) => units.some((u) => u.id === id));
   const memCs = (m, units) => (typeof m.cs === 'boolean' ? m.cs : !!m.gmail && orgPathOf(units, m.unitId).some((n) => ORG_CS_RE.test(n)));
+  /* S8-23 소속만 보기
+   *  볼 수 있는 팀 = 소속 조직과 그 아래 조직 중 매장 목록 팀 + 소속 조직 위쪽의 매장 목록 팀(파트 아래 사람) + 팀장 겸직 팀
+   *  도급인 담당자 스위치(ORG_MEMBERS.client) 켬 = 마스터 · 안전보건팀과 같이 전체 · 아직 스위치로 저장한 적 없음 = 볼 수 있는 팀이 없으면 켬(예전처럼 전체) */
+  function memTeams(m, units, names) {
+    const out = new Set(), add = (u) => { if (u && names.has(u.name)) out.add(u.name); };
+    const down = (id, g) => { if (g > 20) return; units.filter((u) => u.parent === id).forEach((u) => { add(u); down(u.id, g + 1); }); };
+    let u = units.find((x) => x.id === m.unitId), g = 0; if (u) { add(u); down(u.id, 0); }
+    while (u && g++ < 20) { add(u); const p = u.parent; u = units.find((x) => x.id === p); }
+    memLeads(m, units).forEach((id) => add(units.find((x) => x.id === id)));
+    return [...out].sort((p, q) => p.localeCompare(q, 'ko', { numeric: true }));
+  }
+  const memClient = (m, units, names) => (typeof m.client === 'boolean' ? m.client : !memTeams(m, units, names).length);
+  /** 매장 목록 팀 이름들 (목록에 있는 매장만) */
+  async function storeTeamNames() { const S = new Set(); try { storeRows(await storeDoc('list')).filter((r) => !r[4]).forEach((r) => { const t = String(r[2] || '').trim(); if (t) S.add(t); }); } catch (e) {} return S; }
+  /** 로그인 명단(STAFF)에 들어갈 권한: SAFETY · CLIENT(전체 · CS) · TEAM(소속만) */
+  function staffRoleOf(m, units, names) {
+    if (m.role !== 'CLIENT') return { role: m.role, teams: [], leadTeams: [] };
+    if (memCs(m, units) || memClient(m, units, names)) return { role: 'CLIENT', teams: [], leadTeams: [] };
+    const leadTeams = memLeads(m, units).map((id) => (units.find((x) => x.id === id) || {}).name).filter((n) => n && names.has(n));
+    return { role: 'TEAM', teams: memTeams(m, units, names), leadTeams: [...new Set(leadTeams)] };
+  }
   API.orgGet = async (a) => {
     orgGate(a);
     let units = await orgUnits(); if (!units) { units = ORG_SEED; await db.collection('SETTINGS').doc('org').set({ units, updatedAt: now(), updatedBy: a.email }); }
@@ -673,7 +708,8 @@
     if (od && od.exists && !od.data().deptImported) await db.collection('SETTINGS').doc('org').set({ deptImported: 'OFF', updatedAt: now(), updatedBy: a.email }, { merge: true });
     /* S8-12 조직도를 열 때마다 부서 · 팀 · 팀장(Teams 알림)을 매장 점검 쪽(STORES/depts)에 맞춤
      *  (예전 화면으로 조직도를 만들었거나, 저장 때 맞추지 못한 경우도 여기서 다시 맞춰짐) */
-    ORG_SYNC_ERR = ''; await orgDeptSync(a, units, mem).catch((e) => { ORG_SYNC_ERR = (e && e.message) || '알 수 없는 오류'; console.log('부서 맞추기 실패', ORG_SYNC_ERR); });
+    ORG_SYNC_ERR = ''; await orgDeptSync(a, units, mem).then((ch) => { if (ch) teamSyncBg(); }).catch((e) => { ORG_SYNC_ERR = (e && e.message) || '알 수 없는 오류'; console.log('부서 맞추기 실패', ORG_SYNC_ERR); });
+    const names = await storeTeamNames(); await orgScopeSync(a, units, mem, names).catch((e) => console.log('소속 범위 맞추기 실패', e && e.message));  // S8-23
     if (!mem.length) {  // 처음 한 번: 예전 직원 명단 + 도급인 책임자로 채움 (소속은 부서 이름이 같은 팀으로)
       const st = docs(await db.collection('STAFF').get()), P = await principal(true), B = db.batch(), byName = (n) => (units.find((u) => u.name === String(n || '').trim()) || {}).id || '';
       const add = (o) => { const id = 'M-' + rand8(); B.set(db.collection('ORG_MEMBERS').doc(id), { id, ...o, createdAt: now(), createdBy: a.email }); mem.push({ id, ...o }); };
@@ -684,11 +720,25 @@
     }
     const P = await principal(true), pkOf = (id) => PR_PK.find((k) => P[k] && P[k].memberId === id) || '';
     const D = await storeDoc('depts').catch(() => null), sent = {}; ((D && D.teams) || []).forEach((x) => { if (x && x.t) sent[x.t] = x.m || ''; });  // S8-18 지금 매장 점검 · Teams가 쓰는 팀장 메일
-    return { me: a.email, units, members: mem.map((m) => ({ ...memView(m), pk: pkOf(m.id), leads: memLeads(m, units), cs: memCs(m, units) })).sort((x, y) => x.name.localeCompare(y.name, 'ko')), principal: P, stTeams: await orgStoreTeams(), sent, syncErr: ORG_SYNC_ERR, imported: orgImported(units, mem) };  // S8-9 매장 목록 팀 → 매장 수
+    return { me: a.email, units, members: mem.map((m) => ({ ...memView(m), pk: pkOf(m.id), leads: memLeads(m, units), cs: memCs(m, units), client: memClient(m, units, names), view: memTeams(m, units, names) })).sort((x, y) => x.name.localeCompare(y.name, 'ko')), principal: P, stTeams: await orgStoreTeams(), sent, syncErr: ORG_SYNC_ERR, imported: orgImported(units, mem) };  // S8-9 매장 목록 팀 → 매장 수
   };
   let ORG_SYNC_ERR = '';  // S8-18 매장 점검 쪽에 못 맞췄을 때 이유 (화면에 빨간 안내)
+  /** S8-23 로그인 명단(STAFF)의 소속 범위가 지금 조직도 · 매장 목록과 다르면 다시 씀 (바뀐 사람만) */
+  async function orgScopeSync(a, units, mem, names) {
+    const S = {}; docs(await db.collection('STAFF').get()).forEach((s) => { S[lower(s.loginEmail || s.id)] = s; });
+    const same = (x, y) => JSON.stringify(x || []) === JSON.stringify(y || []);
+    for (const m of mem) {
+      if (!m.gmail) continue; const cur = S[lower(m.gmail)]; if (!cur || cur.cs === 'Y' || !['CLIENT', 'TEAM'].includes(cur.role)) continue;
+      const role = orgRoleOf(units, m.unitId, m.gmail, a); if (role !== 'CLIENT') continue;
+      const W = staffRoleOf({ ...m, role }, units, names);
+      if (W.role !== cur.role || !same(W.teams, cur.teams) || !same(W.leadTeams, cur.leadTeams)) await staffSync(a, { ...m, role }, units, '', names).catch(() => {});
+    }
+  }
+  /** S8-23 팀별 문서(TEAM_STORES · TEAM_WEEK) 다시 만들기 = 중계 서버 (기다리지 않음 · 실패해도 화면은 그대로) */
+  const teamSyncBg = () => { relay('teamSync', {}, false, 300000).catch((e) => console.log('팀별 문서 만들기 실패', e && e.message)); };
   /** 구성원 → 로그인 명단(STAFF) 맞추기 */
-  async function staffSync(a, m, units, oldGmail) {
+  async function staffSync(a, m, units, oldGmail, names) {
+    if (!names) names = await storeTeamNames();
     const unit = units.find((u) => u.id === m.unitId), dept = unit ? unit.name : '', keep = (g) => g === a.email || MASTER_EMAILS.includes(g);
     if (oldGmail && oldGmail !== m.gmail && !keep(oldGmail)) await db.collection('STAFF').doc(oldGmail).delete().catch(() => {});
     if (!m.gmail) return;
@@ -696,7 +746,8 @@
     if (m.role === 'NONE') { if (base && !keep(m.gmail)) await ref.delete(); return; }
     /* S8-9 조직도 「CS팀」 = 합동점검 CS 담당자 · 소속 조직이 없는 예전 CS 담당자(직접 등록)는 그대로 둠 */
     const cs = m.role === 'CLIENT' && (memCs(m, units) || (typeof m.cs !== 'boolean' && !unit && base && base.cs === 'Y')) ? 'Y' : '';  // S8-18 CS 담당 스위치
-    await ref.set({ name: m.name, dept, role: m.role, cs, companyEmail: m.companyEmail, loginEmail: m.gmail, active: 'Y', title: m.title, phone: m.phone, unitId: m.unitId, memberId: m.id, scopes: cleanScopes(m.scopes),  // F2.6 담당
+    const R = cs ? { role: 'CLIENT', teams: [], leadTeams: [] } : staffRoleOf(m, units, names);  // S8-23 TEAM = 소속만 보기
+    await ref.set({ name: m.name, dept, role: R.role, teams: R.teams, leadTeams: R.leadTeams, cs, companyEmail: m.companyEmail, loginEmail: m.gmail, active: 'Y', title: m.title, phone: m.phone, unitId: m.unitId, memberId: m.id, scopes: cleanScopes(m.scopes),  // F2.6 담당
       createdBy: (base && base.createdBy) || a.email, createdAt: (base && base.createdAt) || now(), updatedBy: a.email, updatedAt: now() });
   }
   /** F1.9t 권한은 소속으로 자동: 안전보건팀(이름)과 그 아래 조직 = 안전보건팀 · 그 외 = 도급인 담당자 · 로그인 Gmail이 없으면 로그인 명단에 안 넣음 */
@@ -786,8 +837,9 @@
     if (mem.some((m) => !ids.has(m.unitId) && (units || []).some((u) => u && u.id === m.unitId) === false && m.unitId)) { /* 지운 조직의 사람은 화면에서 이미 막음 */ }
     await db.collection('SETTINGS').doc('org').set({ units: L, updatedAt: now(), updatedBy: a.email }, { merge: true }); audit(a, '', 'ORG_SAVE', L.length + '개 조직');  // S8-9 merge = deptImported 남김
     // 조직 이름·위치가 바뀌면 권한(안전보건팀 아래인지)과 부서 표시를 다시 맞춤
-    for (const m of mem) { const role = orgRoleOf(L, m.unitId, m.gmail, a); if (role !== m.role) await db.collection('ORG_MEMBERS').doc(m.id).update({ role }).catch(() => {}); await staffSync(a, { ...m, role }, L, '').catch(() => {}); }
-    await orgDeptSync(a, L, mem).catch(() => {});  // S8-9 부서 · 팀 · 팀장
+    const names = await storeTeamNames();  // S8-23 소속만 보기 팀
+    for (const m of mem) { const role = orgRoleOf(L, m.unitId, m.gmail, a); if (role !== m.role) await db.collection('ORG_MEMBERS').doc(m.id).update({ role }).catch(() => {}); await staffSync(a, { ...m, role }, L, '', names).catch(() => {}); }
+    await orgDeptSync(a, L, mem).then((ch) => { if (ch) teamSyncBg(); }).catch(() => {});  // S8-9 부서 · 팀 · 팀장 · S8-23 팀별 문서의 부서 이름
     return API.orgGet(a);
   };
   API.orgSaveMember = async (a, d) => {
@@ -803,6 +855,7 @@
     /* S8-18 팀장 스위치 (겸직 = 팀 여러 개) · CS 담당 스위치 */
     m.leads = [...new Set((Array.isArray(d && d.leads) ? d.leads : []).map((x) => tidy(x, 20)))].filter((id) => units.some((u) => u.id === id)).slice(0, 20);
     m.cs = !!(d && d.cs);
+    m.client = !!(d && d.client);  // S8-23 도급인 담당자 스위치 (켬 = 전체 · 끔 = 소속만)
     if (m.leads.length && !(m.companyEmail && isInternalEmail(m.companyEmail))) fail('팀장을 켜려면 회사 이메일(@' + CFG.APPROVER_DOMAINS.join(', @') + ')이 있어야 합니다. (Teams 알림을 받는 주소)');
     if (m.cs && !m.gmail) fail('CS 담당을 켜려면 로그인 Gmail이 있어야 합니다. (그 Gmail로 합동점검 화면에 로그인)');
     const all = docs(await db.collection('ORG_MEMBERS').get()), dup = m.gmail && all.find((x) => x.gmail === m.gmail && x.id !== id);
@@ -817,7 +870,7 @@
     const P = await principal(true), was = PR_PK.find((k) => P[k] && P[k].memberId === mid) || '';
     if (pk || was) await orgPrincipalSet(a, units, { id: mid, ...m }, pk);  // 지정했거나, 지정돼 있던 사람(이름·직책이 바뀌면 문서에도 반영)
     audit(a, '', id ? 'MEMBER_EDIT' : 'MEMBER_ADD', m.name + ' ' + m.role + ' ' + m.gmail + (pk ? ' ' + pk : ''));
-    await orgDeptSync(a, units, all.filter((x) => x.id !== mid).concat([{ id: mid, ...m }])).catch(() => {});  // S8-9 팀장이 바뀌었을 수 있음 (orgGet에서 한 번 더 · 실패 이유 표시)
+    await orgDeptSync(a, units, all.filter((x) => x.id !== mid).concat([{ id: mid, ...m }])).then((ch) => { if (ch) teamSyncBg(); }).catch(() => {});  // S8-9 팀장이 바뀌었을 수 있음 (orgGet에서 한 번 더 · 실패 이유 표시)
     return API.orgGet(a);
   };
   API.orgDeleteMember = async (a, id) => {
@@ -859,6 +912,9 @@
     const json = JSON.stringify(L); if (json.length > 900000) fail('매장 목록이 너무 큽니다. (문서 1개 한도)');
     await db.collection('STORES').doc('list').set({ json, count: seen.size, at: now(), by: a.email });
     audit(a, '', 'STORE_SAVE', seen.size + '곳 · 빠짐 ' + gone + ' · 되살림 ' + back);
+    /* S8-23 팀이 바뀌었을 수 있음 → 팀별 문서 다시 만들기(중계) · 소속만 보기 사람들의 볼 수 있는 팀 다시 맞추기 */
+    teamSyncBg();
+    try { const units = (await orgUnits()) || ORG_SEED; await orgScopeSync(a, units, docs(await db.collection('ORG_MEMBERS').get()), await storeTeamNames()); } catch (e) { console.log('소속 범위 맞추기 실패', e && e.message); }
     return API.storeBoard(a);
   };
   /** 부서 저장: depts = [{id, name}] · teams = [[팀, 부서id]] */
@@ -876,12 +932,14 @@
       if (m && !isInternalEmail(m)) fail(t + ' 팀장 메일은 회사메일(@' + CFG.APPROVER_DOMAINS.join(', @') + ')만 쓸 수 있습니다.');
       if (t && (ids.has(id) || m) && !tseen.has(t)) { tseen.add(t); T.push({ t, d: ids.has(id) ? id : '', m }); } });
     await db.collection('STORES').doc('depts').set({ depts: D, teams: T, at: now(), by: a.email });
-    audit(a, '', 'DEPT_SAVE', D.length + '개 부서 · ' + T.length + '개 팀');
+    audit(a, '', 'DEPT_SAVE', D.length + '개 부서 · ' + T.length + '개 팀'); teamSyncBg();  // S8-23 팀별 문서의 부서 이름
     return API.storeBoard(a);
   };
   /* ---------- S4 점장 점검 현황 (본사) ----------
    *  WEEKSUM/{월요일} = { week, s: { 매장코드: {c 공통미흡, d 도급미흡, f 집중위험, r 등록일, l 밀린 주로 냄} } } · 주 1개 = 읽기 1번 */
   API.checkBoard = async (a) => {
+    const memo = {};
+    if (!(await staffOf(a, memo))) { const tm = await teamOf(a, memo); if (tm) return teamBoard(a, tm); }
     await staffOnly(a);
     const [L, D, C, FR] = await Promise.all([storeDoc('list'), storeDoc('depts'), db.collection('SETTINGS').doc('storeCheck').get().catch(() => null), db.collection('SETTINGS').doc('teamsFriday').get().catch(() => null)]);  // S8-13 금요일 자동 알림 기록
     const thisWeek = (() => { const d = new Date(today() + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); })();
@@ -890,6 +948,24 @@
     return { stores: storeRows(L).filter((r) => !r[4]), depts: (D && Array.isArray(D.depts) ? D.depts : []), teams: (D && Array.isArray(D.teams) ? D.teams : []).map((x) => [String((x && x.t) || ''), String((x && x.d) || ''), String((x && x.m) || '')]), start, thisWeek, weeks: W,
       fri: FR && FR.exists ? { week: FR.data().week || '', at: FR.data().at || '', sent: FR.data().sent || 0, fail: FR.data().fail || 0 } : null };
   };
+  /** S8-23 소속만 보기: 팀별 문서만 읽음 (보안 규칙 = 내 STAFF.teams 에 있는 팀만)
+   *  TEAM_STORES/{팀} = { t, dn(부서 이름), json(매장 [코드, 이름, 팀, 형태]) } · TEAM_WEEK/{팀__주} = { t, week, s: { 매장: 요약 } } (중계 서버가 씀) */
+  async function teamBoard(a, tm) {
+    const T = (Array.isArray(tm.teams) ? tm.teams.map(String) : []).slice(0, 30), C = await db.collection('SETTINGS').doc('storeCheck').get().catch(() => null);
+    const thisWeek = (() => { const d = new Date(today() + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); })();
+    const start = (C && C.exists && C.data().startWeek) || thisWeek, stores = [], DN = {}, W = {};
+    await Promise.all(T.map(async (t) => {
+      const [sd, wk] = await Promise.all([db.collection('TEAM_STORES').where('t', '==', t).get().then(docs), db.collection('TEAM_WEEK').where('t', '==', t).get().then(docs)]);
+      sd.forEach((d) => { DN[t] = String(d.dn || ''); parse(d.json, []).forEach((r) => { if (Array.isArray(r) && r[0]) stores.push([String(r[0]), String(r[1] || ''), t, String(r[3] || '')]); }); });
+      wk.forEach((x) => { if (x.week && x.week >= start && x.week <= thisWeek) Object.assign(W[x.week] = W[x.week] || {}, x.s || {}); });
+    }));
+    const dn = [...new Set(T.map((t) => DN[t] || '부서 미지정'))];
+    stores.sort((p, q) => p[2].localeCompare(q[2], 'ko', { numeric: true }) || p[1].localeCompare(q[1], 'ko'));
+    return { stores, depts: dn.map((n) => ({ id: n, name: n })), teams: T.map((t) => [t, DN[t] || '부서 미지정', '']), start, thisWeek, weeks: W, fri: null,
+      team: { teams: T, lead: (Array.isArray(tm.leadTeams) ? tm.leadTeams : []).map(String), unit: tm.dept || '' } };
+  }
+  /** S8-23 팀장(소속만 보기)이 자기 팀 미제출 표를 내 Teams로 받기 (금요일 자동 알림과 같은 카드) */
+  API.chkShare = async (a, week) => relay('chkShare', { week: tidy(week, 10) }, false, 120000);
   API.scCounts = async (a) => { await staffOnly(a); return relay('scCounts', {}, true); };
   /* S8-7 도급인 화면 개편: 오늘 할 일 · 팀 담당자 미제출 메일 · CS 담당자 직접 등록 */
   API.dashSum = async (a) => { await staffOnly(a); return relay('dashSum', {}, true); };
@@ -959,7 +1035,14 @@
   API.vcAll = async (a) => { await staffOnly(a); return relay('vcAll', {}, true); };
   API.vcMail = async (a, id) => { await staffOnly(a); return relay('vcMail', { id: tidy(id, 60) }); };
   /** 점검 1장 보기 (본사 · 중계 서버가 매장 확인) */
-  API.scDetail = async (a, store, id) => { await staffOnly(a); return relay('scDetail', { store: tidy(store, 12), id: tidy(id, 40) }, true); };
+  API.scDetail = async (a, store, id) => {
+    const memo = {};
+    if (!(await staffOf(a, memo))) {  // S8-23 소속만 보기 = 내 팀 매장만
+      const tm = await teamOf(a, memo); if (!tm) fail('아성다이소 직원 계정만 사용할 수 있습니다.');
+      const B = await teamBoard(a, tm); if (!B.stores.some((r) => r[0] === tidy(store, 12))) fail('내 소속 매장이 아닙니다.');
+    }
+    return relay('scDetail', { store: tidy(store, 12), id: tidy(id, 40) }, true);
+  };
   /* S8-9 낸 점검 고치기 (도급인 담당자 · 안전보건팀 · 마스터 · 서버가 한 번 더 확인) */
   API.scEditGet = async (a, store, id) => { await staffOnly(a); return relay('scEditGet', { store: tidy(store, 12), id: tidy(id, 40) }, true); };
   API.scEdit = async (a, body) => { await staffOnly(a); return relay('scEdit', body || {}, false, 240000); };
