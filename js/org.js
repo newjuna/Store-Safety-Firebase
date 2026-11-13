@@ -36,7 +36,7 @@ const orgKids=p=>orgD.units.filter(u=>(u.parent||'')===(p||''));
 function orgPath(id){const L=[];let u=orgD.units.find(x=>x.id===id),g=0;while(u&&g++<12){L.unshift(u.name);const p=u.parent;u=orgD.units.find(x=>x.id===p)}return L}
 function orgBelow(id){const s=new Set([id]);let ch=true;while(ch){ch=false;orgD.units.forEach(u=>{if(s.has(u.parent)&&!s.has(u.id)){s.add(u.id);ch=true}})}return s}
 function orgFlat(){const out=[],walk=(p,d)=>orgKids(p).forEach(u=>{out.push([u,d]);walk(u.id,d+1)});walk('',0);return out}
-function orgRender(){const el=$('staff');if(!el||!orgD)return;orgCss();
+function orgRender(){const el=$('staff');if(!el||!orgD)return;orgCss();if(typeof chkB!=='undefined')chkB=null;  /* S8-12 조직도를 본 뒤 「매장 점검」은 팀장 정보를 새로 읽음 */
  /* 고른 조직의 위 조직은 펼쳐 둠 */let u=orgD.units.find(x=>x.id===orgSel),g=0;while(u&&u.parent&&g++<12){orgOpen.add(u.parent);const p=u.parent;u=orgD.units.find(x=>x.id===p)}
  el.innerHTML='<div class="ogw"><nav class="ogs" aria-label="조직"><div class="ogsh"><span>조직</span><button class="xs" type="button" aria-label="맨 위 조직 추가" onclick="orgUF={mode:\'top\'};orgF=null;orgRender()">+</button></div>'+orgTree('',0)+'</nav>'
   +'<section class="ogm" aria-live="polite">'+orgMain()+'</section></div>'+orgLinkHtml();

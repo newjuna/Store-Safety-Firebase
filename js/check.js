@@ -52,7 +52,10 @@ function chkTeamHtml(all){const M=chkMailOf(),G={};all.filter(x=>!x.s).forEach(x
   +(K.length?K.map(t=>{const L=G[t],d=L[0].dept;return '<button class="shli" type="button" onclick="chkGo('+e(JSON.stringify(['team',d,t]))+')"><span class="t"><b>'+e(t)+' · '+L.length+'곳</b><span class="muted">'+e(L.slice(0,3).map(x=>x.n).join(' · ')+(L.length>3?' 외 '+(L.length-3):''))+'</span></span>'
    +'<span class="shpill'+(M[t]?'':' no')+'">'+(M[t]?'팀장 있음':'팀장 없음')+'</span></button>'}).join('')+'<p class="muted" style="margin:8px 0 0">팀장 = 조직도에서 그 팀 구성원 중 직책 「팀장」 · 회사 이메일로 Teams 알림을 받습니다. (☰ 설정 → 조직도)</p>'
    :'<p class="muted" style="margin:8px 0 0">이 주 미제출 매장이 없습니다.</p>')+'</div>'}
-async function chkMailGo(){if(!chkB)return;const M=chkMailOf(),G={};chkRows().filter(x=>!x.s).forEach(x=>{G[x.t]=(G[x.t]||0)+1});const K=Object.keys(G),yes=K.filter(t=>M[t]),no=K.filter(t=>!M[t]);
+async function chkMailGo(){if(!chkB)return;
+ /* S8-12 조직도에서 팀장을 바꾼 뒤에도 옛 화면 정보로 막지 않게 → 보내기 전에 팀장 정보 다시 읽음 */
+ try{const nb=await call('checkBoard');chkB={...chkB,depts:nb.depts,teams:nb.teams}}catch(e){}
+ const M=chkMailOf(),G={};chkRows().filter(x=>!x.s).forEach(x=>{G[x.t]=(G[x.t]||0)+1});const K=Object.keys(G),yes=K.filter(t=>M[t]),no=K.filter(t=>!M[t]);
  if(!K.length){msg('미제출 매장이 없습니다.');return}if(!yes.length){msg('팀장이 없습니다. ☰ 설정 → 조직도에서 팀 구성원 직책 「팀장」 · 회사 이메일을 넣어 주세요.');return}
  if(!await askOk('팀장에게 Teams 알림',chkWl(chkW)+' (월) 주 미제출 매장을 팀장에게 Teams로 알립니다.\n\n보냄 '+yes.length+'팀 · '+yes.slice(0,6).map(t=>t+' '+G[t]+'곳').join(', ')+(yes.length>6?' …':'')+(no.length?'\n팀장 없음(안 보냄) '+no.length+'팀 · '+no.slice(0,4).join(', '):''),'보내기'))return;
  try{const r=await call('chkMail',chkW);const bad=r.teams.filter(x=>!x.ok).length;msg(r.none?'미제출 매장이 없습니다.':'Teams 알림 '+r.sent+'팀'+(bad?' · 못 보냄 '+bad+'팀 (Teams 연결 확인)':'')+(r.noMail.length?' · 팀장 없음 '+r.noMail.length+'팀':''))}catch(e){}}
