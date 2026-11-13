@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko" data-ver="26.11.13 S8-20"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover"><title>입고·재고 안전관리</title>
+<!doctype html><html lang="ko" data-ver="26.11.13 S8-22"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover"><title>입고·재고 안전관리</title>
 <!-- F1.9t 홈 화면에 추가 (앱 아이콘 · 주소창 없이 전체 화면) -->
 <link rel="manifest" href="manifest.webmanifest">
 <!-- F1.9v 서명 글씨체 (나눔손글씨 붓) -->
@@ -9,12 +9,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="입고재고안전">
-<link rel="stylesheet" href="css/style.css?v=S8-20">
+<link rel="stylesheet" href="css/style.css?v=S8-22">
 <script src="js/config.js"></script>
 <script src="https://www.gstatic.com/firebasejs/13.1.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/13.1.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore-compat.js"></script>
-<script src="js/fb.js?v=S8-20"></script>
+<script src="js/fb.js?v=S8-22"></script>
 </head><body>
 <div id="loginView" class="lv" hidden><main class="lbox">
   <div class="lbrand"><i aria-hidden="true"></i>입고·재고 안전관리</div>
@@ -26,25 +26,25 @@
   <div class="lver" id="loginVer">&nbsp;</div>
 </main></div>
 <div id="appView" hidden><div id="topLoad" aria-hidden="true"></div><div id="topNote" role="status" aria-live="polite">불러오는 중…</div><div class="cover" id="cover" role="status" aria-live="polite"><div class="loadbox"><div class="spin" aria-hidden="true"></div><div id="loadMsg">처리 중입니다</div><div class="loadbar ind" aria-hidden="true"><span id="loadBar"></span></div><div class="loadsec" id="loadSec"></div><div class="muted" id="loadHint">잠시만 기다려 주세요</div><button class="button ghost" type="button" id="loadReload" hidden style="margin-top:12px" onclick="waitReload()">⟳ 새로 고침</button></div></div><header class="topbar"><div class="tb-in"><div class="tb-l"><button id="backBtn" class="backbtn" type="button" hidden aria-label="뒤로 가기" onclick="goBack()">‹</button><div class="brand"><span class="dot" aria-hidden="true"></span><b>입고·재고 안전관리</b></div></div><div class="tb-r"><span id="pageTitle" class="ptitle"></span><button id="refreshBtn" class="gearbtn" type="button" aria-label="새로고침" title="새로고침" onclick="refreshNow()">⟳</button><button id="gearBtn" class="gearbtn" type="button" hidden aria-label="마스터 설정 (직원 관리)" title="마스터 설정 · 직원 관리" onclick="openMaster()">⚙</button><button id="guideBtn" class="gearbtn gdtop" type="button" hidden aria-label="이 화면 사용 가이드" title="사용 가이드" onclick="topGuide()">❔ 가이드</button><button id="menuBtn" class="menubtn" type="button" aria-label="메뉴 열기" aria-expanded="false" aria-controls="drawer" onclick="toggleMenu()"><span></span><span></span><span></span></button></div></div></header><div id="scrim" class="scrim" onclick="toggleMenu(false)"></div><aside id="drawer" class="drawer" aria-label="메뉴" aria-hidden="true"><div class="dr-head"><b>메뉴</b><button class="xbtn" type="button" onclick="toggleMenu(false)" aria-label="메뉴 닫기">✕</button></div><div id="identity" class="who">Google 계정 확인 중...</div><nav class="tabs" id="navTabs"><button id="myTab" class="active" onclick="switchTab('my')">내 업무</button><button id="vm_dash" class="vmb hidden" onclick="vgo('dash')">대시보드</button><button id="vm_docs" class="vmb hidden" onclick="vgo('docs')">계약 서류</button><button id="adminTab" class="hidden" onclick="switchTab('admin')">사업자 승인</button><button id="reviewTab" class="hidden" onclick="switchTab('review')">제출자료 검토</button><button id="tplTab" class="hidden" onclick="switchTab('tpl')">표준양식 관리</button><button id="jobsTab" class="hidden" onclick="switchTab('jobs')">본사 화면</button><button id="staffTab" class="hidden" onclick="switchTab('staff')">직원 관리</button><button id="vendorsTab" class="hidden" onclick="sgo('vendors')">업체 현황</button><!-- S8-7 도급인 메뉴 7개 + 설정 (아이콘 = home.js smIcons) --><button id="sm_dash" class="smb hidden" data-ic="home" onclick="sgo('dash')">오늘 할 일</button><button id="sm_vendors" class="smb hidden" data-ic="store" data-sub="승인 · 서류 · 안내문" onclick="sgo('vendors')">업체</button><button id="sm_check" class="smb hidden" data-ic="check" data-sub="점장 순회점검 · 점장 안내문" onclick="sgo('check')">매장 점검</button><button id="sm_ca" class="smb hidden" data-ic="doc" onclick="sgo('ca')">시정요구서</button><button id="sm_co" class="smb hidden" data-ic="cal" data-sub="회의 · 공문" onclick="sgo('co')">협의체</button><button id="sm_joint" class="smb hidden" data-ic="users" data-sub="CS 담당자 · 일정" onclick="sgo('joint')">합동점검</button><button id="sm_half" class="smb hidden" data-ic="star" onclick="sgo('half')">반기 평가</button><div class="smb navh smsep hidden" data-safety="1">가끔 쓰는 것</div><button id="sm_settings" class="smb hidden" data-safety="1" data-ic="gear" data-sub="점검 항목 · 매장 · 부서 · 양식 · 조직도" onclick="sgo('settings')">설정</button></nav><button class="logout" type="button" onclick="logout()">로그아웃 · 접속 구분 바꾸기</button><div class="dr-foot">아성다이소 안전보건팀 · <span class="verTxt"></span></div></aside><main class="main"><section id="my"></section><section id="admin" class="hidden"></section><section id="review" class="hidden"></section><section id="tpl" class="hidden"></section><section id="staff" class="hidden"></section><section id="jobs" class="hidden"></section><section id="vendors" class="hidden"></section><div class="appver verTxt"></div></main><div class="toast" id="toast"></div><div id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" style="position:fixed;inset:0;background:#1b243566;z-index:30;display:none;align-items:center;justify-content:center;padding:20px"><div style="background:#fff;border-radius:18px;padding:26px;max-width:380px;width:100%;text-align:center;box-shadow:0 20px 50px #0003"><h2 id="modalTitle" style="margin:0 0 10px;font-size:20px"></h2><p id="modalBody" class="desc" style="white-space:pre-line;margin:0 0 18px"></p><button id="modalBtn" class="button" type="button" style="width:100%"></button><button id="modalCancel" class="button ghost" type="button" style="width:100%;margin-top:8px" hidden>나중에</button></div></div></div>
-<script src="js/eval.js?v=S8-20"></script>
-<script src="js/contract.js?v=S8-20"></script>
-<script src="js/plan.js?v=S8-20"></script>
-<script src="js/vendor.js?v=S8-20"></script>
-<script src="js/qr.js?v=S8-20"></script>
-<script src="js/staff.js?v=S8-20"></script>
-<script src="js/board.js?v=S8-20"></script>
-<script src="js/store.js?v=S8-20"></script>
-<script src="js/shop.js?v=S8-20"></script>
-<script src="js/check.js?v=S8-20"></script>
-<script src="js/ca.js?v=S8-20"></script>
-<script src="js/council.js?v=S8-20"></script>
-<script src="js/joint.js?v=S8-20"></script>
-<script src="js/comeet.js?v=S8-20"></script>
-<script src="js/wr.js?v=S8-20"></script>
-<script src="js/he.js?v=S8-20"></script>
-<script src="js/org.js?v=S8-20"></script>
-<script src="js/flyer.js?v=S8-20"></script>
-<script src="js/guide.js?v=S8-20"></script>
-<script src="js/home.js?v=S8-20"></script>
-<script src="js/app.js?v=S8-20"></script>
+<script src="js/eval.js?v=S8-22"></script>
+<script src="js/contract.js?v=S8-22"></script>
+<script src="js/plan.js?v=S8-22"></script>
+<script src="js/vendor.js?v=S8-22"></script>
+<script src="js/qr.js?v=S8-22"></script>
+<script src="js/staff.js?v=S8-22"></script>
+<script src="js/board.js?v=S8-22"></script>
+<script src="js/store.js?v=S8-22"></script>
+<script src="js/shop.js?v=S8-22"></script>
+<script src="js/check.js?v=S8-22"></script>
+<script src="js/ca.js?v=S8-22"></script>
+<script src="js/council.js?v=S8-22"></script>
+<script src="js/joint.js?v=S8-22"></script>
+<script src="js/comeet.js?v=S8-22"></script>
+<script src="js/wr.js?v=S8-22"></script>
+<script src="js/he.js?v=S8-22"></script>
+<script src="js/org.js?v=S8-22"></script>
+<script src="js/flyer.js?v=S8-22"></script>
+<script src="js/guide.js?v=S8-22"></script>
+<script src="js/home.js?v=S8-22"></script>
+<script src="js/app.js?v=S8-22"></script>
 </body></html>
