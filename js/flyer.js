@@ -142,7 +142,7 @@ function fyPdf(){if(!fyForm().date){inspFlag(['f_fyDate'],'준비 기한 날짜�
 let skI=null;
 const skUrl=k=>location.origin+location.pathname+'?store='+k;
 const skQr=(u,px)=>'https://api.qrserver.com/v1/create-qr-code/?size='+(px||260)+'x'+(px||260)+'&margin=8&data='+encodeURIComponent(u);
-async function skLoad(){try{skI=await call('shopKeyGet')}catch(e){skI={err:(e&&e.message)||'불러오지 못했습니다.'}}if(tab==='jobs'&&smenu==='shopfly')renderJobs()}
+async function skLoad(){try{skI=await callQuiet('shopKeyGet')}catch(e){skI={err:(e&&e.message)||'불러오지 못했습니다.'}}if(tab==='jobs'&&['shopfly','check'].includes(smenu)&&!chkDet)renderJobs()}  // S8-7 매장 점검 화면 아래에 같이 나옴
 function sShopFly(){if(typeof jtCss==='function')jtCss();const e=escapeText;if(!skI){skLoad();return '<div class="card"><h2>점장 안내문</h2><p class="muted">불러오는 중입니다…</p></div>'}
  if(skI.err){const m=skI.err;skI=null;return '<div class="card"><h2>점장 안내문</h2><p class="muted">'+e(m)+'</p><button class="button" type="button" onclick="renderJobs()">다시 시도</button></div>'}
  if(!skI.key)return '<div class="card"><h2 style="margin:0">점장 안내문</h2><p class="muted" style="margin:8px 0 0">매장 점장에게 보내는 점검 앱 주소 · QR입니다. 아직 만들지 않았습니다.<br>지금은 예전 주소(…/?store)로도 들어올 수 있으니, 만들어서 매장에 보내 주세요.</p><button class="button" type="button" style="width:100%;margin-top:12px" onclick="skNew()">점장 주소 만들기</button></div>';

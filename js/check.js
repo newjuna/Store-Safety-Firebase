@@ -24,16 +24,17 @@ function chkRows(){const B=chkB,T={},DN={};B.teams.forEach(([t,d])=>{T[t]=d});B.
  return B.stores.map(r=>{const c=r[0];return {c,n:r[1],t:r[2]||'(팀 없음)',k:r[3],dept:DN[T[r[2]]]||'부서 미지정',s:cur[c]||null,owed:W.filter(w=>w<=chkW&&!(B.weeks[w]||{})[c]).length}})}
 function chkSum(L){const sub=L.filter(x=>x.s);return {n:L.length,sub:sub.length,c:sub.reduce((a,x)=>a+(x.s.c||0),0),d:sub.reduce((a,x)=>a+(x.s.d||0),0),f:sub.reduce((a,x)=>a+(x.s.f||0),0),late:L.filter(x=>x.owed>(x.s?0:1)).length}}
 const chkPct=(a,b)=>b?Math.round(a/b*100)+'%':'–';
-function sChk(){chkCss();if(chkDet){jobsMode='form';return chkDet}if(chkErr){const m=chkErr;chkErr='';return '<div class="card"><h2>점검 현황</h2><p class="muted">'+escapeText(m)+'</p><button class="button" type="button" onclick="renderJobs()">다시 시도</button></div>'}if(!chkB){chkLoad();return '<div class="card"><h2>점검 현황</h2><p class="muted">불러오는 중입니다…</p></div>'}
+function sChk(){chkCss();if(chkDet){jobsMode='form';return chkDet}if(chkErr){const m=chkErr;chkErr='';return '<div class="card"><h2>매장 점검</h2><p class="muted">'+escapeText(m)+'</p><button class="button" type="button" onclick="renderJobs()">다시 시도</button></div>'}if(!chkB){chkLoad();return '<div class="card"><h2>매장 점검</h2><p class="muted">불러오는 중입니다…</p></div>'}
  const B=chkB,all=chkRows(),[lv,a,b]=chkLv,L=lv==='all'?all:lv==='dept'?all.filter(x=>x.dept===a):all.filter(x=>x.dept===a&&x.t===b),S=chkSum(L);
  const prev=chkW>B.start,next=chkW<B.thisWeek;
  let h='<div class="card"><div class="chkbar"><button class="button ghost" type="button" onclick="chkWeek(-7)"'+(prev?'':' disabled')+' aria-label="지난주">‹</button><b>'+chkWl(chkW)+' (월) 주'+(chkW===B.thisWeek?' · 이번 주':'')+'</b><button class="button ghost" type="button" onclick="chkWeek(7)"'+(next?'':' disabled')+' aria-label="다음 주">›</button></div>'
   +'<div class="chknum"><div><b>'+S.n+'</b><span>매장</span></div><div><b>'+S.sub+'</b><span>제출 '+chkPct(S.sub,S.n)+'</span></div><div class="'+(S.n-S.sub?'r':'')+'"><b>'+(S.n-S.sub)+'</b><span>미제출</span></div><div class="'+(S.late?'r':'')+'"><b>'+S.late+'</b><span>밀린 주 있음</span></div></div>'
   +'<div class="chknum" style="grid-template-columns:repeat(3,1fr)"><div class="'+(S.c?'r':'')+'"><b>'+S.c+'</b><span>공통 미흡</span></div><div class="'+(S.d?'r':'')+'"><b>'+S.d+'</b><span>도급 미흡</span></div><div class="'+(S.f?'r':'')+'"><b>'+S.f+'</b><span>집중 위험</span></div></div>'
-  +(chkCnt&&lv==='all'?'<div class="muted" style="margin-top:8px">미조치 전체 · 공통 '+chkCnt.COMMON+' · 도급 '+chkCnt.CONTRACT+' · 집중 '+chkCnt.FOCUS+'</div>':'')+'</div>';
- if(!B.stores.length)return h+'<div class="card"><p class="muted" style="margin:0">매장 목록을 먼저 반영해 주세요. (☰ 매장 → 매장 목록)</p></div>';
- h+='<div class="card"><div class="chkcrumb">'+(lv==='all'?'<b>전체</b>':'<button type="button" onclick="chkGo([\'all\'])">전체</button> ›')+(lv!=='all'?(lv==='dept'?'<b>'+escapeText(a)+'</b>':'<button type="button" onclick="chkGo([\'dept\',\''+escapeText(a)+'\'])">'+escapeText(a)+'</button> › <b>'+escapeText(b)+'</b>'):'')
-  +'<span style="flex:1"></span><button class="button ghost" type="button" style="padding:6px 10px;font-size:13px" onclick="chkCopy()">미제출 복사</button></div>';
+  +(chkCnt&&lv==='all'?'<div class="muted" style="margin-top:8px">미조치 전체 · 공통 '+chkCnt.COMMON+' · 도급 '+chkCnt.CONTRACT+' · 집중 '+chkCnt.FOCUS+'</div>':'')
+  +(B.stores.length?'<div class="row" style="gap:6px;margin-top:10px"><button class="button ghost" type="button" style="flex:1" onclick="chkCopy()">미제출 복사</button><button class="button" type="button" style="flex:1" onclick="chkMailGo()"'+(S.n-S.sub?'':' disabled')+'>팀에 알림 메일</button></div>':'')+'</div>';
+ if(!B.stores.length)return h+'<div class="card"><p class="muted" style="margin:0">매장 목록을 먼저 반영해 주세요. (☰ 설정 → 매장 목록)</p></div>'+chkShopHtml();
+ if(lv==='all')h+=chkTeamHtml(all);
+ h+='<div class="card"><h2 style="margin:0 0 6px">부서 · 팀별</h2><div class="chkcrumb">'+(lv==='all'?'<b>전체</b>':'<button type="button" onclick="chkGo([\'all\'])">전체</button> ›')+(lv!=='all'?(lv==='dept'?'<b>'+escapeText(a)+'</b>':'<button type="button" onclick="chkGo([\'dept\',\''+escapeText(a)+'\'])">'+escapeText(a)+'</button> › <b>'+escapeText(b)+'</b>'):'')+'</div>';
  const grp=(key,next)=>{const G={};L.forEach(x=>{(G[x[key]]=G[x[key]]||[]).push(x)});const K=Object.keys(G).sort((p,q)=>(p==='부서 미지정')-(q==='부서 미지정')||p.localeCompare(q,'ko',{numeric:true}));
   return '<table class="rtable chkt" style="margin-top:10px"><tr><th>'+(key==='dept'?'부서':'팀')+'</th><th class="n">매장</th><th class="n">제출</th><th class="n">미제출</th><th class="n">공통</th><th class="n">도급</th><th class="n">위험</th></tr>'
    +K.map(k=>{const s=chkSum(G[k]);return '<tr class="go" onclick="chkGo('+escapeText(JSON.stringify(next(k)))+')"><td><b>'+escapeText(k)+'</b></td><td class="n">'+s.n+'</td><td class="n">'+chkPct(s.sub,s.n)+'</td><td class="n'+(s.n-s.sub?' r':'')+'">'+(s.n-s.sub)+'</td><td class="n">'+s.c+'</td><td class="n'+(s.d?' r':'')+'">'+s.d+'</td><td class="n">'+s.f+'</td></tr>'}).join('')+'</table>'};
@@ -42,13 +43,25 @@ function sChk(){chkCss();if(chkDet){jobsMode='form';return chkDet}if(chkErr){con
  else{const M=L.slice().sort((p,q)=>(!!p.s-!!q.s)||q.owed-p.owed||p.n.localeCompare(q.n,'ko'));
   h+='<table class="rtable chkt" style="margin-top:10px"><tr><th>매장</th><th>상태</th><th class="n">미흡</th><th class="n">밀린</th></tr>'+M.map(x=>{const bad=x.s?(x.s.c||0)+(x.s.d||0)+(x.s.f||0):0;
    return '<tr'+(x.s?' class="go" onclick="chkOpen(\''+escapeText(x.c)+'\')"':'')+'><td><b>'+escapeText(x.n)+'</b><div class="muted">'+escapeText(x.c+' · '+x.k)+'</div></td><td>'+(x.s?'<span class="shpill ok">제출 '+chkWl(x.s.r)+'</span>':'<span class="shpill no">미제출</span>')+'</td><td class="n'+(bad?' r':'')+'">'+(x.s?bad:'')+'</td><td class="n'+(x.owed>(x.s?0:1)?' r':'')+'">'+(x.owed||'')+'</td></tr>'}).join('')+'</table>'}
- return h+'</div>'}
+ return h+'</div>'+(lv==='all'?chkShopHtml():'')}
+/* ---------- S8-7 미제출 매장 (팀별) · 팀 담당자 메일 · 점장 안내문 (예전 「점장 안내문」 메뉴를 여기로 합침) ---------- */
+const chkMailOf=()=>{const M={};((chkB&&chkB.teams)||[]).forEach(([t,,m])=>{if(m)M[t]=m});return M};
+function chkTeamHtml(all){const M=chkMailOf(),G={};all.filter(x=>!x.s).forEach(x=>{(G[x.t]=G[x.t]||[]).push(x)});const K=Object.keys(G).sort((p,q)=>G[q].length-G[p].length||p.localeCompare(q,'ko',{numeric:true})),e=escapeText;
+ return '<div class="card"><div class="vh-top" style="align-items:center"><h2 style="margin:0">미제출 매장 (팀별)</h2>'+(K.length?'<span class="shpill no">'+K.length+'팀</span>':'')+'</div>'
+  +(K.length?K.map(t=>{const L=G[t],d=L[0].dept;return '<button class="shli" type="button" onclick="chkGo('+e(JSON.stringify(['team',d,t]))+')"><span class="t"><b>'+e(t)+' · '+L.length+'곳</b><span class="muted">'+e(L.slice(0,3).map(x=>x.n).join(' · ')+(L.length>3?' 외 '+(L.length-3):''))+'</span></span>'
+   +'<span class="shpill'+(M[t]?'':' no')+'">'+(M[t]?'메일 있음':'메일 없음')+'</span></button>'}).join('')+'<p class="muted" style="margin:8px 0 0">팀 담당자 메일은 ☰ 설정 → 부서 관리에서 적습니다.</p>'
+   :'<p class="muted" style="margin:8px 0 0">이 주 미제출 매장이 없습니다.</p>')+'</div>'}
+async function chkMailGo(){if(!chkB)return;const M=chkMailOf(),G={};chkRows().filter(x=>!x.s).forEach(x=>{G[x.t]=(G[x.t]||0)+1});const K=Object.keys(G),yes=K.filter(t=>M[t]),no=K.filter(t=>!M[t]);
+ if(!K.length){msg('미제출 매장이 없습니다.');return}if(!yes.length){msg('팀 담당자 메일이 없습니다. ☰ 설정 → 부서 관리에서 적어 주세요.');return}
+ if(!await askOk('팀에 알림 메일',chkWl(chkW)+' (월) 주 미제출 매장을 팀 담당자에게 보냅니다.\n\n보냄 '+yes.length+'팀 · '+yes.slice(0,6).map(t=>t+' '+G[t]+'곳').join(', ')+(yes.length>6?' …':'')+(no.length?'\n메일 없음(안 보냄) '+no.length+'팀 · '+no.slice(0,4).join(', '):''),'보내기'))return;
+ try{const r=await call('chkMail',chkW);msg(r.none?'미제출 매장이 없습니다.':'보냈습니다 · '+r.sent+'팀'+(r.noMail.length?' · 메일 없음 '+r.noMail.length+'팀':''))}catch(e){}}
+function chkShopHtml(){if(typeof sShopFly!=='function')return '';return sShopFly()}
 function chkWeek(n){if(!chkB)return;const w=chkAdd(chkW,n);if(w<chkB.start||w>chkB.thisWeek)return;chkW=w;renderJobs()}
 function chkGo(lv){chkLv=lv;renderJobs();window.scrollTo(0,0)}
 function chkCopy(){const [lv,a,b]=chkLv,L=chkRows().filter(x=>!x.s&&(lv==='all'||x.dept===a)&&(lv!=='team'||x.t===b));if(!L.length){msg('미제출 매장이 없습니다.');return}
  const t=['매장\t매장명\t팀\t부서\t밀린 주'].concat(L.map(x=>[x.c,x.n,x.t,x.dept,x.owed].join('\t'))).join('\n');
  (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>msg('미제출 '+L.length+'곳을 복사했습니다. 엑셀에 붙여넣으세요.'),()=>prompt('복사해 주세요.',t))}
-async function chkOpen(code){let d;try{d=await call('scDetail',code,code+'_'+chkW)}catch(e){return}const o=shDetailHtml(d,'chkBack()','← 점검 현황');chkDet=o.html;renderJobs();window.scrollTo(0,0);o.pics.forEach(([k,fid,ref])=>shPicLoad(k,code,ref,fid))}
+async function chkOpen(code){let d;try{d=await call('scDetail',code,code+'_'+chkW)}catch(e){return}const o=shDetailHtml(d,'chkBack()','← 매장 점검');chkDet=o.html;renderJobs();window.scrollTo(0,0);o.pics.forEach(([k,fid,ref])=>shPicLoad(k,code,ref,fid))}
 function chkBack(){chkDet=null;renderJobs()}
 
 /* ---------- 점검 항목 관리 (안전보건팀) ---------- */

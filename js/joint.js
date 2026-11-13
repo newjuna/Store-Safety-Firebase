@@ -29,6 +29,8 @@ function sJt(){jtCss();if(!jtB){jtLoad();return jtCard('합동점검','<p class=
  if(jtB.err){const m=jtB.err;jtB=null;return jtCard('합동점검','<p class="muted">'+escapeText(m)+'</p><button class="button" type="button" onclick="renderJobs()">다시 시도</button>')}
  if(jtSel){jobsMode='form';return jtVisitHtml()}
  if(jtEdit){jobsMode='form';return jtFormHtml()}
+ /* S8-7 CS 담당자: 처음 들어오면 오늘(또는 진행 중) 합동점검을 바로 엶 → 점검 시작 · 업체 QR · 점검표 */
+ if(jtB.cs&&!jtB.autoDone){jtB.autoDone=true;const t=jtB.today,x=jtB.mine.find(y=>y.status==='OPEN')||jtB.mine.find(y=>y.status==='PLAN'&&y.date===t);if(x){setTimeout(()=>jtOpen(x.id),0)}}
  return jtB.cs?jtMineHtml(jtB.mine,true):jtBoardHtml()}
 function jtQGo(Q){jtQ=Q;jtB=null;renderJobs()}
 function jtBoardHtml(){const B=jtB,t=B.today,L=B.list,e=escapeText,cur=jtQOf(t);
@@ -46,14 +48,20 @@ function jtMineHtml(M,full){const t=(jtB&&jtB.today)||kstToday(),e=escapeText,up
  return (full?'<div class="card"><h2 style="margin:0">'+e(((jtB&&jtB.name)||'')+' 님')+'</h2><div class="muted">CS팀 · 합동점검</div></div>':'')
   +'<div class="card"><h2 style="margin:0 0 4px">내 합동점검</h2>'+(up.length?up.map(row).join(''):'<p class="muted" style="margin:8px 0 0">예정된 합동점검이 없습니다.</p>')
   +(full&&done.length?'<details class="hist"><summary>완료 '+done.length+'</summary>'+done.slice(0,40).map(row).join('')+'</details>':'')+'</div>'}
-/** CS팀 담당자 명단 · 초대 링크 */
-function jtCsHtml(){const B=jtB,e=escapeText,ed=B.canEdit;
- return '<div class="card"><div class="vh-top" style="align-items:center"><h2 style="margin:0">CS팀 담당자</h2>'+(ed?'<button class="button" type="button" onclick="jtInvite()">＋ 초대 링크</button>':'')+'</div>'
-  +B.csList.map(c=>'<div class="jtwho"><span class="jtav">'+e((c.name||'?').slice(0,1))+'</span><span class="t"><b>'+e(c.name)+'</b> <span class="muted">'+e(c.email)+'</span></span>'
-   +(ed?'<button type="button" class="shpill '+(c.status==='STOP'?'':'ok')+'" style="border:0;cursor:pointer" onclick="jtCsStop(\''+e(c.email)+'\','+(c.status==='STOP')+')">'+(c.status==='STOP'?'중지':'사용')+'</button>':'<span class="shpill '+(c.status==='STOP'?'':'ok')+'">'+(c.status==='STOP'?'중지':'사용')+'</span>')+'</div>').join('')
-  +(B.invites||[]).map(v=>'<div class="jtwho"><span class="jtav">'+e((v.name||'?').slice(0,1))+'</span><span class="t"><b>'+e(v.name)+'</b> <span class="muted">로그인 전 · '+e(String(v.expAt).slice(5,10).replace('-','.'))+'까지</span></span><button type="button" class="linkbtn" onclick="copyLink(\''+e(jtLink('CSI',v.token))+'\')">링크 복사</button><button type="button" class="linkbtn" onclick="jtInvCancel(\''+e(v.token)+'\')">취소</button><span class="shpill">대기</span></div>').join('')
-  +(!B.csList.length&&!(B.invites||[]).length?'<p class="muted" style="margin:8px 0 0">아직 없습니다.</p>':'')
-  +'<p class="muted" style="margin:8px 0 0">초대 링크 = 1명 1번 · 7일 · 받은 사람이 본인 Google 계정으로 로그인하면 등록됩니다.</p></div>'}
+/** S8-7 CS 담당자 (조직관리 모양) · 담당자 밑에 이번 분기 맡은 합동점검 · 안전보건팀이 이름 + Gmail로 직접 등록 (초대 링크 · 메일 없음) */
+function jtCsHtml(){const B=jtB,e=escapeText,ed=B.canEdit,t=B.today,L=B.list||[];
+ const kids=c=>L.filter(x=>String(x.csEmail).toLowerCase()===String(c.email).toLowerCase());
+ return '<div class="card"><h2 style="margin:0 0 4px">CS 담당자</h2>'
+  +B.csList.map(c=>{const K=kids(c),off=c.status==='STOP';
+   return '<div class="jtwho"'+(off?' style="opacity:.6"':'')+'><span class="jtav">'+e((c.name||'?').slice(0,1))+'</span><span class="t"><b>'+e(c.name)+'</b> <span class="muted">'+e(c.email)+'</span></span><span class="shpill">'+K.length+'건</span>'
+    +(ed?'<button type="button" class="shpill '+(off?'':'ok')+'" style="border:0;cursor:pointer" onclick="jtCsStop(\''+e(c.email)+'\','+off+')">'+(off?'중지':'사용')+'</button>':'')+'</div>'
+    +(K.length?'<div style="border-left:2px solid var(--line);margin-left:13px;padding-left:12px">'+K.map(x=>{const [s,cl]=jtSt(x,t);return '<button class="shli" type="button" onclick="jtOpen(\''+e(x.id)+'\')">'+shIc('cal',cl==='no')+'<span class="t"><b>'+e(x.storeName+' · '+jtD(x.date))+'</b><span class="muted">'+e(x.company)+'</span></span><span class="shpill '+cl+'">'+s+'</span></button>'}).join('')+'</div>':'')}).join('')
+  +(!B.csList.length?'<p class="muted" style="margin:8px 0 0">아직 없습니다.</p>':'')
+  +(ed?'<div class="row" style="gap:6px;margin-top:10px"><input id="jtCsN" class="shinp" style="flex:1;margin:0" placeholder="이름" autocomplete="off" aria-label="CS 담당자 이름"><input id="jtCsE" class="shinp" style="flex:1.4;margin:0" type="email" placeholder="Gmail" autocomplete="off" aria-label="CS 담당자 Gmail"></div>'
+   +'<button class="button ghost" type="button" style="width:100%;margin-top:8px" onclick="jtCsAdd()">＋ CS 담당자 추가</button>'
+   +'<p class="muted" style="margin:8px 0 0">등록한 Gmail로 앱에 로그인하면 「합동점검」 화면만 열립니다. (메일은 따로 가지 않습니다)</p>':'')+'</div>'}
+async function jtCsAdd(){const n=($('jtCsN').value||'').trim(),m=($('jtCsE').value||'').trim().toLowerCase(),miss=[];if(!n)miss.push('jtCsN');if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m))miss.push('jtCsE');if(miss.length){inspFlag(miss,miss.length>1?'이름 · Gmail':n?'Gmail':'이름');return}
+ try{const r=await call('csAdd',n,m);jtB={...jtB,csList:r.csList,invites:r.invites};renderJobs();msg(n+' 님을 등록했습니다. 이 Gmail로 로그인하면 됩니다.')}catch(e){}}
 async function jtInvite(){const n=prompt('CS팀 담당자 이름');if(n===null)return;if(!n.trim()){msg('이름을 적어 주세요.');return}
  try{const r=await call('csInvite',n.trim());jtB={...jtB,csList:r.csList,invites:r.invites};renderJobs();const u=jtLink('CSI',r.token);
   popup('초대 링크',n.trim()+' 님에게 아래 링크를 보내 주세요. (1번 · 7일)\n\n'+u,'링크 복사',()=>copyLink(u))}catch(e){}}
