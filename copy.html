@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>표 복사 · 순회점검 미제출</title>
+<!-- S8-15 팀장 Teams 「표 복사」 버튼이 여는 페이지
+     표 내용 = 주소 # 뒤 (tc=base64url · 서버로 보내지 않음) · 로그인 · Firebase 없음
+     [복사] = 글자(탭 구분 → 엑셀 칸) + 표(HTML → 메일 · 워드에서도 표) 같이 복사 -->
+<style>
+*{box-sizing:border-box}body{margin:0;font:15px/1.55 "Malgun Gothic","Apple SD Gothic Neo",sans-serif;color:#111827;background:#f4f5f7}
+main{max-width:640px;margin:0 auto;padding:16px}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin-bottom:12px}
+h1{font-size:17px;margin:0 0 4px}.sub{color:#6b7280;font-size:13px}
+table{border-collapse:collapse;width:100%;margin-top:12px;font-size:14px}
+th,td{border:1px solid #e5e7eb;padding:7px 9px;text-align:center;white-space:nowrap}th{background:#f9fafb;font-weight:600}
+td.n,th.n{text-align:left;white-space:normal}td.x{color:#dc2626;font-weight:700}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:0;border-radius:12px;background:#111827;color:#fff;font:inherit;font-size:16px;font-weight:700;padding:14px;cursor:pointer}
+.btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.btn.done{background:#15803d}
+.leg{color:#6b7280;font-size:12.5px;margin-top:8px}
+pre{white-space:pre-wrap;word-break:break-all;background:#f9fafb;border-radius:8px;padding:10px;font-size:12px;margin:8px 0 0}
+</style></head><body><main>
+<div class="card" id="box"><p class="sub">불러오는 중…</p></div>
+<button class="btn" id="cp" type="button" hidden><svg viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="12" rx="2"/><path d="M5 16V5a1 1 0 0 1 1-1h9"/></svg><span>복사</span></button>
+<p class="leg" id="tip" hidden>복사한 뒤 엑셀 · 메일 · 메신저에 붙여넣기 하세요. 엑셀에 붙이면 칸이 나뉩니다.</p>
+</main>
+<script>
+(function(){
+ var esc=function(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
+ var box=document.getElementById('box'),btn=document.getElementById('cp'),tip=document.getElementById('tip'),text='';
+ try{var h=(location.hash.match(/tc=([A-Za-z0-9_\-=]+)/)||[])[1];if(!h)throw 0;
+  var b=atob(h.replace(/-/g,'+').replace(/_/g,'/')),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
+  text=new TextDecoder('utf-8').decode(u)}catch(e){box.innerHTML='<h1>표를 찾을 수 없습니다</h1><p class="sub">Teams 알림의 [표 복사] 버튼으로 다시 열어 주세요.</p>';return}
+ var L=text.split('\n'),title=L[0]||'',head=(L[1]||'').split('\t'),rows=[],tail=[];
+ for(var k=2;k<L.length;k++){if(L[k].indexOf('\t')>=0)rows.push(L[k].split('\t'));else if(L[k])tail.push(L[k])}
+ var th='<tr>'+head.map(function(c,i){return '<th'+(i===head.length-1?' class="n"':'')+'>'+esc(c)+'</th>'}).join('')+'</tr>';
+ var tb=rows.map(function(r){return '<tr>'+r.map(function(c,i){return '<td class="'+(i===r.length-1?'n':c==='X'?'x':'')+'">'+esc(c)+'</td>'}).join('')+'</tr>'}).join('');
+ box.innerHTML='<h1>'+esc(title)+'</h1><div class="sub">미제출 '+rows.length+'곳</div><table>'+th+tb+'</table>'+(tail.length?'<div class="leg">'+tail.map(esc).join('<br>')+'</div>':'');
+ /* 붙여넣는 곳에 따라: 엑셀 = 탭 글자 · 메일 · 워드 = 표 (테두리) */
+ var html='<p><b>'+esc(title)+'</b></p><table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse">'+th.replace(/ class="n"/g,'')+tb.replace(/ class="[a-z]*"/g,'')+'</table>'+(tail.length?'<p>'+tail.map(esc).join('<br>')+'</p>':'');
+ btn.hidden=false;tip.hidden=false;
+ function ok(){btn.classList.add('done');btn.querySelector('span').textContent='복사했습니다';setTimeout(function(){btn.classList.remove('done');btn.querySelector('span').textContent='복사'},2500)}
+ function old(){var t=document.createElement('textarea');t.value=text;t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.select();var r=false;try{r=document.execCommand('copy')}catch(e){}t.remove();
+  if(r)ok();else{box.insertAdjacentHTML('beforeend','<p class="sub" style="margin-top:10px">자동 복사가 안 됩니다. 아래 글을 길게 눌러 복사해 주세요.</p><pre>'+esc(text)+'</pre>')}}
+ btn.onclick=function(){
+  try{if(navigator.clipboard&&window.ClipboardItem){navigator.clipboard.write([new ClipboardItem({'text/plain':new Blob([text],{type:'text/plain'}),'text/html':new Blob([html],{type:'text/html'})})]).then(ok,function(){navigator.clipboard.writeText(text).then(ok,old)});return}
+   if(navigator.clipboard){navigator.clipboard.writeText(text).then(ok,old);return}}catch(e){}
+  old()};
+})();
+</script></body></html>
