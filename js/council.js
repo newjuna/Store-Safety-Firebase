@@ -28,11 +28,15 @@ function coHtml(b,who,back,extra,inMeet){if(typeof chkCss==='function')chkCss();
  return h}
 
 /** S8-24 회의 결과 화면 = 결과 PDF와 같은 순서 (① 개최 공문 ② 안건 ③ 참석 현황) · who S 본사 · P 점장 */
-function coMeetHtml(b,who,back){const e=escapeText,M=b.meet||{},V=M.vendors||[],nIn=V.filter(v=>v.in).length,HOW={AUTO:'회의 연 사람',APP:'앱',HQ:'도급인 등록',STAFF:'링크',QR:'QR'};
+function coMeetHtml(b,who,back,extra){const e=escapeText,old=!b.meet,M=b.meet||{},V=M.vendors||[],nIn=V.filter(v=>v.in).length,HOW={AUTO:'회의 연 사람',APP:'앱',HQ:'도급인 등록',STAFF:'링크',QR:'QR'};
  const sec=(n,t)=>'<h2 style="margin:20px 4px 8px;font-size:16px">'+n+' '+e(t)+'</h2>',co=M.mailCo||[];
  let h='<div class="card">'+(back?'<button class="button ghost" type="button" onclick="'+back+'">← 협의체</button>':'')+'<h2 style="margin:'+(back?'12px':'0')+' 0 0">'+e(coMon(b.id))+' 안전보건협의체 결과</h2>'
-  +'<div class="muted">회의 '+e(M.when||'')+' · 업체 출석 '+nIn+' / '+V.length+'</div>'
-  +'<button class="button" type="button" style="width:100%;margin-top:10px" onclick="cmPdfGet(\''+e(b.id)+'\''+(who==='P'?',\'P\'':'')+')">결과 PDF 내려받기</button></div>';
+  +'<div class="muted">'+(old?'회의 기록 없음 · 예전 25일 자동 결과 파일':'회의 '+e(M.when||'')+' · 업체 출석 '+nIn+' / '+V.length)+'</div>'
+  +'<button class="button" type="button" style="width:100%;margin-top:10px" onclick="cmPdfGet(\''+e(b.id)+'\''+(who==='P'?',\'P\'':'')+')">결과 PDF 내려받기</button>'+(extra||'')+'</div>';
+ /* S8-24 예전 25일 파일 = 회의 기록이 없어서 ① · ③은 「기록 없음」 · ② 안건만 그 파일 그대로 */
+ if(old)return h+sec('①','개최 공문')+'<div class="card"><p class="muted" style="margin:0">이 달은 협의체 회의를 연 기록이 없어 개최 공문(메일)이 없습니다.</p></div>'
+  +sec('②','안건 · '+coRng(b)+' (예전 25일 집계 기간)')+coHtml(b,who,'','',true)
+  +sec('③','참석 현황')+'<div class="card"><p class="muted" style="margin:0">회의 기록이 없습니다. 반기 평가에서는 미개최로 보아 업체 점수에 영향이 없습니다.</p></div>';
  h+=sec('①','개최 공문')+'<div class="card"><table class="rtable chkt"><tr><th style="width:64px">제목</th><td>'+e(coMon(b.id))+' 안전보건협의체 개최</td></tr><tr><th>일시</th><td>'+e(M.when||'')+'</td></tr>'
   +'<tr><th>수신</th><td>입고도우미 수급업체 '+(co.length||M.mailCount||0)+'곳'+(co.length?'<div class="muted">'+e(co.join(' · '))+'</div>':'')+'</td></tr>'
   +'<tr><th>발송</th><td>'+(M.mailAt?e(fmtTime(M.mailAt))+' · 메일 '+(M.mailCount||0)+'통':'기록 없음')+'</td></tr><tr><th>안건</th><td>'+e(coRng(b))+' 안전보건 현황</td></tr></table>'
@@ -59,15 +63,15 @@ function sCo(){if(!coL){coLoad();return '<div class="card"><h2>협의체</h2><p 
   if(coCur.noResult)return '<div class="card"><button class="button ghost" type="button" onclick="coBack()">← 협의체</button><h2 style="margin:12px 0 0">'+e(coMon(coSel))+' 안전보건협의체</h2>'
    +'<div class="muted">회의 '+e(md?jtD(md.date)+(md.hour?' '+Number(md.hour)+'시':''):'')+(md?' · 업체 출석 '+md.nIn+' / '+md.nV:'')+'</div>'
    +'<p class="muted" style="margin:10px 0 0">이 회의는 아직 결과(개최 공문 · 안건 · 참석 현황)가 없습니다. 예전 방식으로 끝났거나 결과 만들기가 실패한 회의입니다.</p>'+(mk||'<p class="muted" style="margin:8px 0 0">안전보건팀이 결과를 만들면 볼 수 있습니다.</p>')+'</div>';
-  /* 예전 25일 결과 파일 · 그 달에 끝난 회의가 있으면 회의 결과로 바꿀 수 있음 */
-  return coHtml(coCur,'S','coBack()',mk?'<div class="card"><p class="muted" style="margin:0">예전 25일 결과 파일입니다. 이 달 협의체 회의 결과로 다시 만들면 결과 PDF와 같은 화면이 됩니다.</p>'+mk+'</div>':'')}
+  /* 예전 25일 결과 파일 = 같은 ① ② ③ 모양 · 그 달에 끝난 회의가 있으면 회의 결과로 바꿀 수 있음 */
+  return coMeetHtml(coCur,'S','coBack()',mk?'<p class="muted" style="margin:10px 0 0">이 달에 끝난 협의체 회의가 있습니다. 회의 결과로 다시 만들면 개최 공문 · 참석 현황까지 들어갑니다.</p>'+mk:'')}
  const P=coTopPick(),M=coL.meets||{},F={};(coL.list||[]).forEach(c=>{F[c.id]=c});
  const ids=[...new Set(Object.keys(M).filter(k=>M[k].status==='DONE').concat(Object.keys(F)))].sort().reverse();
- const row=id=>{const m=M[id],c=F[id],res=!!(c&&(c.meet||c.kind==='MEET'));
+ const row=id=>{const m=M[id],c=F[id],res=!!(c&&(c.meet||c.kind==='MEET'));  // res = 회의 결과 (예전 25일 파일도 PDF는 받을 수 있음)
   const sub=m?jtD(m.date)+(m.hour?' '+Number(m.hour)+'시':'')+(res?'':c?' · 예전 25일 결과 파일':' · 결과 만들기 전'):'예전 25일 결과 파일 · '+coRng(c);
   const go=c?"coOpen('"+e(id)+"')":"coOpenNoResult('"+e(id)+"')";
   return '<div class="row" style="gap:6px;align-items:center"><button class="shli" type="button" style="flex:1" onclick="'+go+'">'+shIc(m?'check':'doc')+'<span class="t"><b>'+e(coMon(id))+'</b><span class="muted">'+e(sub)+'</span></span>'+(m?'<span class="shpill ok">출석 '+m.nIn+' / '+m.nV+'</span>':'')+'<span aria-hidden="true">›</span></button>'
-   +(res?'<button type="button" class="linkbtn" onclick="cmPdfGet(\''+e(id)+'\')">PDF ↓</button>':'')+'</div>'};
+   +(c?'<button type="button" class="linkbtn" onclick="cmPdfGet(\''+e(id)+'\')">PDF ↓</button>':'')+'</div>'};
  return '<div class="card"><h2 style="margin:0">협의체</h2><div class="muted">매월 중순 정기 회의 · 회의를 열면 업체에 개최 공문 메일 · 회의 종료 = 결과 PDF (개최 공문 + 안건 + 참석 현황)</div>'
   +(coTopP?'<button type="button" class="linkbtn" style="margin-top:6px" onclick="coRefreshTop(\'\')">← 지금 회의로</button>':'')+'</div>'
   +(typeof cmCardHtml==='function'?cmCardHtml(P):'')
@@ -93,7 +97,7 @@ async function shCouncilView(id){shMark('협의체 결과');const P=shPicked();i
   try{b=await shCall('scCouncil',{id,store:P[0].c})}catch(e){shCouncilView();return}if(shV!=='council')return;const seen=shLS.get(SH_CO_SEEN,[]);if(!seen.includes(id))shLS.set(SH_CO_SEEN,seen.concat(id).slice(-24));
   /* S8-9 부서 · 팀 표 = 점장이 고른 매장의 부서만 (위험요인 전파 · 업체 재해는 전국 그대로) · 매장 한 곳 카드는 뺌 */
   const MD=new Set([b.myDept].concat(P.map(s=>s.d)).filter(Boolean));b={...b,myStore:'',mine:null};if(MD.size)b={...b,byDept:(b.byDept||[]).filter(d=>MD.has(d.dept)),deptOnly:1};
-  shEl().innerHTML=b.meet?coMeetHtml(b,'P','shCouncilView()'):coHtml(b,'P','shCouncilView()');window.scrollTo(0,0);return}  // S8-24 회의 결과 = PDF와 같은 순서
+  shEl().innerHTML=coMeetHtml(b,'P','shCouncilView()');window.scrollTo(0,0);return}  // S8-24 결과 = PDF와 같은 순서 (예전 25일 파일도 같은 모양)
  if(!shCoL){shEl().innerHTML='<div class="card"><p class="muted">불러오는 중…</p></div>';try{shCoL=(await shCall('scCouncils',{})).list||[]}catch(e){return}if(shV!=='council')return}
  shCoDraw()}
 function shCoDraw(y){const L=shCoL||[],e=escapeText,seen=shLS.get(SH_CO_SEEN,[]),by={};L.forEach(c=>{by[c.id]=c});
