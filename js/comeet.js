@@ -30,8 +30,8 @@ function cmVTable(m){const e=escapeText,done=m.status==='DONE',A=m.attendees||[]
 function cmInner(){const m=cmCur,e=escapeText,mon=coMon(m.id);
  if(m.err)return cmCard('협의체 회의','','<p class="muted">'+e(m.err)+'</p><button class="button ghost" type="button" onclick="cmCur=null;cmLoad(\''+e(m.id)+'\')">다시 시도</button>');
  if(cmEdit)return cmFormHtml();
- if(m.none)return cmCard(e(mon)+' 협의체 회의','<span class="shpill">아직 안 엶</span>','<p class="muted" style="margin:6px 0 0">매월 중순 정기 회의 · 날짜와 시만 정하면 업체에 개최 공문 메일이 갑니다.</p>'
-  +(m.canEdit?'<button class="button" type="button" style="width:100%;margin-top:10px" onclick="cmNew()">'+e(Number(m.id.slice(5,7)))+'월 협의체 회의 열기</button>':'<p class="muted" style="margin:8px 0 0">안전보건팀이 회의를 열면 여기에 보입니다.</p>'));
+ if(m.none)return cmCard('협의체 회의','<span class="shpill">열린 회의 없음</span>','<p class="muted" style="margin:6px 0 0">매월 중순 정기 회의 · 날짜와 시만 고르면 업체에 개최 공문 메일이 갑니다. 고른 날짜의 달이 그 달 협의체가 됩니다.</p>'
+  +(m.canEdit?'<button class="button" type="button" style="width:100%;margin-top:10px" onclick="cmNew()">협의체 회의 열기</button>':'<p class="muted" style="margin:8px 0 0">안전보건팀이 회의를 열면 여기에 보입니다.</p>'));
  const R=m.range||{},head='<div class="shli" style="cursor:default">'+shIc('cal')+'<span class="t"><b>'+e(cmWhen(m))+'</b><span class="muted">'+(m.mailAt?'개최 공문 메일 '+e(fmtTime(m.mailAt))+' · '+(m.mailCount||0)+'곳':'개최 공문 메일 안 보냄')+'</span></span></div>'
   +(R.from?'<div class="muted" style="margin-top:2px">안건 기간 '+e(cmDot(R.from)+' ~ '+cmDot(R.to))+(m.status==='DONE'?'':' (자동)')+'</div>':'');
  const T=cmVTable(m),nIn=T.V.filter(v=>v.in).length,A=m.attendees||[],hq=A.filter(x=>x.side==='HQ');
@@ -69,8 +69,7 @@ function cmFormHtml(){const E=cmEdit,e=escapeText,t=(cmCur&&cmCur.today)||kstTod
   +'<button class="button" type="button" style="width:100%;margin-top:12px" onclick="cmSave()">'+(ed?'저장 (날짜 · 시 · 받는 곳이 바뀌면 메일 다시)':'회의 열기 · 개최 공문 메일 발송')+'</button><button class="button ghost" type="button" style="width:100%;margin-top:6px" onclick="cmEdit=null;cmRedraw()">취소</button>'
   +'<p class="muted" style="margin:8px 0 0">회의 방식(대면 · 화상)은 따로 알려 주세요. 회의 날짜의 달이 그 달 협의체가 됩니다.</p>')}
 async function cmSave(){const E=cmEdit,miss=[];if(!E.date)miss.push('cmDate');if(!(E.to||[]).length)miss.push('cmTo');if(miss.length){inspFlag(miss,miss.map(x=>({cmDate:'날짜',cmTo:'받는 곳'}[x])).join(' · '));return}
- if(!E.id&&cmCur&&cmCur.id&&E.date.slice(0,7)!==cmCur.id&&!await askOk('다른 달',coMon(E.date.slice(0,7))+' 협의체 회의로 엽니다.','열기'))return;
- const was=cmCur&&cmCur.id;try{const r=await call('cmSave',{id:E.id||'',date:E.date,hour:E.hour,to:E.to});cmCur=r;cmEdit=null;cmRedraw();coL=null;if(typeof dsD!=='undefined')dsD=null;cmListRefresh(r.id!==was?r.id:'');msg(r.mailed?'열었습니다 · 개최 공문 메일 '+r.mailed+'곳':'저장했습니다')}catch(e){}}
+ try{const r=await call('cmSave',{id:E.id||'',date:E.date,hour:E.hour,to:E.to});cmCur=r;cmEdit=null;cmRedraw();coL=null;if(typeof dsD!=='undefined')dsD=null;cmListRefresh('');msg(r.mailed?'열었습니다 · 개최 공문 메일 '+r.mailed+'곳':'저장했습니다')}catch(e){}}
 async function cmMailAgain(){const n=(cmCur.mailTo||[]).length;if(!await askOk('개최 공문 메일',(n?'고른 업체 '+n+'곳':'입고도우미 업체 계약담당자 전체')+'에게 개최 공문 메일을 다시 보낼까요?\n받는 곳을 바꾸려면 [일정 고치기]에서 고르세요.','보내기'))return;try{const r=await call('cmMail',cmCur.id);cmCur=r;cmRedraw();msg('보냈습니다 · '+r.mailed+'곳')}catch(e){}}
 async function cmDel(){if(!await askOk('회의 취소',coMon(cmCur.id)+' 협의체 회의를 취소할까요?\n출석 기록도 지워집니다.'+(cmCur.mailAt?'\n업체에 취소 메일이 갑니다.':''),'취소하기'))return;try{cmCur=await call('cmDel',cmCur.id);cmRedraw();coL=null;if(typeof dsD!=='undefined')dsD=null;cmListRefresh('');msg('취소했습니다.')}catch(e){}}
 async function cmAdd(){const n=($('cmAddN').value||'').trim();if(!n){inspFlag(['cmAddN'],'출석자 이름');return}try{cmCur=await call('cmAdd',cmCur.id,n,$('cmAddC').value);cmRedraw();msg('출석으로 등록했습니다.')}catch(e){}}
@@ -78,8 +77,12 @@ async function cmDrop(i){const x=(cmCur.attendees||[])[i];if(!x||!await askOk('�
 async function cmHqIn(){try{cmCur=await call('cmHqIn',cmCur.id,cmCur.myName||'');cmRedraw();msg('도급인으로 출석했습니다.')}catch(e){}}
 async function cmDone(){const m=cmCur,T=cmVTable(m),nIn=T.V.filter(v=>v.in).length;
  if(!await askOk('회의 종료',coMon(m.id)+' 협의체 회의\n업체 출석 '+nIn+' / '+T.V.length+'\n\n종료하면 출석이 확정되고 고칠 수 없습니다.\n안건('+cmDot((m.range||{}).from)+' ~ '+cmDot((m.range||{}).to)+')을 모아 결과 PDF를 만듭니다.','종료'))return;
- try{cmCur=await call('cmDone',m.id);cmRedraw();coL=null;if(typeof dsD!=='undefined')dsD=null;cmListRefresh(m.id);msg(cmCur.resultErr?'종료했습니다 · 결과는 [결과 다시 만들기]를 눌러 주세요':'종료했습니다 · 결과 PDF를 내려받을 수 있습니다')}catch(e){}}
-async function cmResultAgain(){try{cmCur=await call('cmResult',cmCur.id);cmRedraw();coL=null;msg('결과를 만들었습니다.')}catch(e){}}
+ try{cmCur=await call('cmDone',m.id);coL=null;if(typeof dsD!=='undefined')dsD=null;
+  if(cmCur.resultErr){cmRedraw();cmListRefresh(m.id);msg('종료했습니다 · 결과는 [결과 다시 만들기]를 눌러 주세요');return}
+  msg('종료했습니다 · 결과 PDF를 내려받을 수 있습니다');cmShowResult(m.id)}catch(e){}}
+async function cmResultAgain(){try{cmCur=await call('cmResult',cmCur.id);coL=null;msg('결과를 만들었습니다.');cmShowResult(cmCur.id)}catch(e){}}
+/** 종료 뒤 = 그 달 결과 화면 (결과 PDF와 같은 순서) · ☰ 협의체가 아니면 카드만 새로 */
+function cmShowResult(P){if(typeof coTopP!=='undefined')coTopP='';if(typeof tab!=='undefined'&&tab==='jobs'&&typeof smenu!=='undefined'&&smenu==='co'&&typeof coOpen==='function'){coOpen(P);return}cmRedraw()}
 /** ☰ 협의체 첫 화면이면 아래 달 목록도 새로 (pin = 맨 위 카드를 이 달로 고정 · 종료 직후 결과 PDF가 보이게) */
 function cmListRefresh(pin){if(pin&&typeof coTopP!=='undefined')coTopP=pin;if(typeof tab!=='undefined'&&tab==='jobs'&&typeof smenu!=='undefined'&&smenu==='co'&&typeof coSel!=='undefined'&&!coSel&&typeof coLoad==='function')coLoad()}
 /** 결과 PDF 내려받기 (서버가 바로 만들어 보냄 · Drive 링크 없음) · who S 본사 · V 업체 · P 점장 */
