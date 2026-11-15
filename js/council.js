@@ -1,13 +1,14 @@
-/* S6 안전보건협의체 결과 — 본사 ☰ 협의체 (목록 · 결과 · 다시 만들기 · 공문 메일) · 점장 「협의체 결과」
- *  서버: Relay coList · coGet · coMake · coMail (본사) / scCouncils · scCouncil (점장)
- *  파일은 매월 25일 09시 자동 생성 (지난달 26일 ~ 이번 달 24일) · 다음 달 1일 09시 업체 공문 메일 */
+/* S6 안전보건협의체 결과 — 본사 ☰ 협의체 (맨 위 회의 카드 · 달 목록 · 결과) · 점장 「협의체 결과」
+ *  서버: Relay coList · coGet (본사) / scCouncils · scCouncil · scCmPdf (점장)
+ *  S8-24 결과 = 협의체 회의 종료 때 (안건 기간 = 지난 회의 다음 날 ~ 이번 회의 전날) · 25일 자동 생성 · 1일 공문 메일 없앰 · 예전 파일은 그대로 보임 */
 let coL=null,coCur=null,coSel='';
 const coMon=id=>id?id.slice(0,4)+'년 '+Number(id.slice(5,7))+'월':'';
 const coRng=b=>(b.from||'').slice(5).replace('-','.')+' ~ '+(b.to||'').slice(5).replace('-','.');
 const coPct=(a,b)=>b?Math.round(a/b*100)+'%':'–';
 /** 협의체 결과 화면 (who S 본사 · P 점장) */
 function coHtml(b,who,back,extra){if(typeof chkCss==='function')chkCss();const e=escapeText;
- let h='<div class="card">'+(back?'<button class="button ghost" type="button" onclick="'+back+'">← 협의체</button>':'')+'<h2 style="margin:'+(back?'12px':'0')+' 0 0">'+e(coMon(b.id))+' 안전보건협의체</h2><div class="muted">집계 '+e(coRng(b))+(b.createdAt?' · 생성 '+e(fmtTime(b.createdAt)):'')+(who==='S'?(b.mailAt?' · 공문 '+e(fmtTime(b.mailAt))+' ('+b.mailCount+'통)':' · 공문 전'):'')+'</div>'
+ let h='<div class="card">'+(back?'<button class="button ghost" type="button" onclick="'+back+'">← 협의체</button>':'')+'<h2 style="margin:'+(back?'12px':'0')+' 0 0">'+e(coMon(b.id))+' 안전보건협의체</h2><div class="muted">'+(b.meet?'회의 '+e(b.meet.when||'')+' · 안건 기간 '+e(coRng(b))+' · 업체 출석 '+(b.meet.vendors||[]).filter(v=>v.in).length+' / '+(b.meet.vendors||[]).length  /* S8-24 회의 결과 */
+   :'집계 '+e(coRng(b))+(b.createdAt?' · 생성 '+e(fmtTime(b.createdAt)):'')+(who==='S'?(b.mailAt?' · 공문 '+e(fmtTime(b.mailAt))+' ('+b.mailCount+'통)':' · 예전 25일 결과 파일'):''))+'</div>'
   +'<div class="chknum"><div><b>'+b.sheets+'</b><span>점검 '+coPct(b.sheets,b.expect)+'</span></div><div class="'+(b.cPoor?'r':'')+'"><b>'+b.cPoor+'</b><span>공통 미흡</span></div><div class="'+(b.dPoor?'r':'')+'"><b>'+b.dPoor+'</b><span>도급 미흡</span></div><div class="'+(b.fRisk?'r':'')+'"><b>'+b.fRisk+'</b><span>집중 위험</span></div></div>'
   +(b.late?'<div class="muted" style="margin-top:6px">지난 기간 늦은 제출 '+b.late+'장 · 공통 미흡 '+(b.lateC||0)+' · 도급 미흡 '+(b.lateD||0)+' · 집중 위험 '+(b.lateF||0)+((b.lateTop||[]).length?' ('+b.lateTop.map(x=>e(x.name)+' '+x.n).join(' · ')+')':'')+'</div>':'')+'</div>';
  h+=extra||'';  // S8-1 협의체 회의 카드 (본사)
@@ -25,14 +26,30 @@ function coHtml(b,who,back,extra){if(typeof chkCss==='function')chkCss();const e
  if(who==='S'&&(b.lateList||[]).length)h+='<div class="card"><details class="hist"><summary>지난 기간 늦은 제출 '+b.lateList.length+'</summary>'+b.lateList.map(x=>'<div class="muted">'+e(x.storeName+' · '+shW(x.week)+' 주')+'</div>').join('')+'</details></div>';
  return h}
 
-/* ---------- 본사 ☰ 협의체 ---------- */
+/* ---------- 본사 ☰ 협의체 ----------
+ *  S8-24 맨 위 = 회의 카드 (열기 · 출석 · 종료 · 결과 PDF) · 아래 = 달 목록 (회의 · 출석 · 결과 PDF · 예전 25일 결과 파일)
+ *  25일 자동 생성 · 1일 공문 메일은 없앰 (회의를 열면 개최 공문 메일 · 종료 = 결과) */
+let coTopP='';  // 맨 위 회의 카드의 달 (메일 링크 · 목록에서 고름)
 async function coLoad(){try{coL=await call('coList')}catch(e){coL={list:[],today:'',err:(e&&e.message)||'불러오지 못했습니다.'}}if(tab==='jobs'&&smenu==='co')renderJobs()}
-function sCo(){if(!coL){coLoad();return '<div class="card"><h2>협의체</h2><p class="muted">불러오는 중입니다…</p></div>'}if(coL.err){const m=coL.err;coL=null;return '<div class="card"><h2>협의체</h2><p class="muted">'+escapeText(m)+'</p><button class="button" type="button" onclick="renderJobs()">다시 시도</button></div>'}const ed=isSafetyUI();
- if(coSel&&coCur&&coCur.id===coSel)return coHtml(coCur,'S','coBack()',typeof cmCardHtml==='function'?cmCardHtml(coSel):'')+(ed?'<div class="card"><div class="row"><button class="button ghost" type="button" style="flex:1" onclick="coMakeNow(\''+coSel+'\')">다시 만들기</button><button class="button" type="button" style="flex:1" onclick="coMailNow(\''+coSel+'\')">'+(coCur.mailAt?'공문 메일 다시 보내기':'공문 메일 보내기')+'</button></div><p class="muted" style="margin:8px 0 0">다시 만들기 = 지금 기록으로 다시 집계 (부서 · 팀 이름도 지금 기준)</p></div>':'');
- const t=coL.today,cur=Number(t.slice(8,10))>=25?t.slice(0,7):(()=>{const y=+t.slice(0,4),m=+t.slice(5,7);return m===1?(y-1)+'-12':y+'-'+('0'+(m-1)).slice(-2)})();  // 집계가 끝난 가장 최근 기간
- return '<div class="card"><h2 style="margin:0">협의체</h2><div class="muted">매월 25일 09시 자동 생성 · 다음 달 1일 09시 업체 공문 메일</div>'
-  +(ed&&!coL.list.some(c=>c.id===cur)?'<button class="button" type="button" style="width:100%;margin-top:10px" onclick="coMakeNow(\''+cur+'\')">'+coMon(cur)+' 만들기</button>':'')+'</div>'
-  +'<div class="card">'+(coL.list.length?coL.list.map(c=>'<button class="shli" type="button" onclick="coOpen(\''+escapeText(c.id)+'\')">'+shIc('doc')+'<span class="t"><b>'+escapeText(coMon(c.id))+'</b><span class="muted">'+escapeText(coRng(c))+' · '+(c.mailAt?'공문 '+c.mailCount+'통':'공문 전')+escapeText(typeof cmRowTxt==='function'?cmRowTxt(c.id):'')+'</span></span><span aria-hidden="true">›</span></button>').join(''):'<p class="muted" style="margin:0">아직 없습니다.</p>')+'</div>'}
+/** 맨 위 카드 달: 고른 달 → 종료 안 한 회의 (가장 이른 달) → 이번 달 (이번 달 회의가 끝났으면 다음 달) */
+function coTopPick(){const M=coL.meets||{},cur=coL.today.slice(0,7);if(coTopP)return coTopP;const open=Object.keys(M).filter(k=>M[k].status!=='DONE').sort();if(open.length)return open[0];
+ return M[cur]&&M[cur].status==='DONE'?(typeof cmNextP==='function'?cmNextP(cur):cur):cur}
+function coRefreshTop(id){coTopP=id||'';if(tab==='jobs'&&smenu==='co'&&!coSel)renderJobs()}
+function sCo(){if(!coL){coLoad();return '<div class="card"><h2>협의체</h2><p class="muted">불러오는 중입니다…</p></div>'}if(coL.err){const m=coL.err;coL=null;return '<div class="card"><h2>협의체</h2><p class="muted">'+escapeText(m)+'</p><button class="button" type="button" onclick="renderJobs()">다시 시도</button></div>'}const e=escapeText;
+ if(coSel&&coCur&&coCur.id===coSel)return coHtml(coCur,'S','coBack()',typeof cmCardHtml==='function'&&(coCur.meet||(coL.meets||{})[coSel])?cmCardHtml(coSel):'');
+ const P=coTopPick(),M=coL.meets||{},F={};(coL.list||[]).forEach(c=>{F[c.id]=c});
+ const ids=[...new Set(Object.keys(M).concat(Object.keys(F)))].sort().reverse();
+ const row=id=>{const m=M[id],c=F[id],legacy=c&&!c.meet&&c.kind!=='MEET',done=m&&m.status==='DONE',res=done&&c&&!legacy;
+  const sub=m?jtD(m.date)+(m.hour?' '+Number(m.hour)+'시':'')+(done?'':' · 출석 받는 중'):legacy?'예전 25일 결과 파일 · '+coRng(c):'회의 없음';
+  const pill=m?(done?'<span class="shpill ok">'+m.nIn+' / '+m.nV+'</span>':'<span class="shpill no">진행</span>'):legacy?'':'<span class="shpill no">미개최</span>';
+  const go=c?"coOpen('"+e(id)+"')":"coRefreshTop('"+e(id)+"');window.scrollTo(0,0)";
+  return '<div class="row" style="gap:6px;align-items:center"><button class="shli" type="button" style="flex:1" onclick="'+go+'">'+shIc(done?'check':m?'cal':'doc')+'<span class="t"><b>'+e(coMon(id))+'</b><span class="muted">'+e(sub)+'</span></span>'+pill+'<span aria-hidden="true">›</span></button>'
+   +(res?'<button type="button" class="linkbtn" onclick="cmPdfGet(\''+e(id)+'\')">PDF ↓</button>':'')+'</div>'};
+ return '<div class="card"><h2 style="margin:0">협의체</h2><div class="muted">매월 중순 정기 회의 · 회의를 열면 업체에 개최 공문 메일 · 회의 종료 = 결과 PDF (개최 공문 + 안건 + 참석 현황)</div>'
+  +(coTopP?'<button type="button" class="linkbtn" style="margin-top:6px" onclick="coRefreshTop(\'\')">← 지금 회의로</button>':'')+'</div>'
+  +(typeof cmCardHtml==='function'?cmCardHtml(P):'')
+  +'<div class="card"><h2 style="margin:0 0 4px">달별 협의체</h2>'+(ids.length?ids.map(row).join(''):'<p class="muted" style="margin:8px 0 0">아직 없습니다.</p>')
+  +'<p class="muted" style="margin:8px 0 0">미개최 달 = 업체 점수 영향 없음 · 예전 25일 결과 파일은 그대로 볼 수 있습니다.</p></div>'}
 async function coOpen(id){try{coCur=await call('coGet',id);coSel=id;jobsMode='form';renderJobs();window.scrollTo(0,0)}catch(e){}}
 function coBack(){coSel='';coCur=null;renderJobs()}
 async function coMakeNow(id){if(!await askOk('협의체 만들기',coMon(id)+' 협의체를 지금 기록으로 집계할까요?\n(이미 있으면 다시 만듭니다)','만들기'))return;try{coCur=await call('coMake',id);coSel=id;coL=null;await coLoad();msg('만들었습니다.')}catch(e){}}
@@ -48,7 +65,8 @@ async function shCouncilView(id){shMark('협의체 결과');const P=shPicked();i
   try{b=await shCall('scCouncil',{id,store:P[0].c})}catch(e){shCouncilView();return}if(shV!=='council')return;const seen=shLS.get(SH_CO_SEEN,[]);if(!seen.includes(id))shLS.set(SH_CO_SEEN,seen.concat(id).slice(-24));
   /* S8-9 부서 · 팀 표 = 점장이 고른 매장의 부서만 (위험요인 전파 · 업체 재해는 전국 그대로) · 매장 한 곳 카드는 뺌 */
   const MD=new Set([b.myDept].concat(P.map(s=>s.d)).filter(Boolean));b={...b,myStore:'',mine:null};if(MD.size)b={...b,byDept:(b.byDept||[]).filter(d=>MD.has(d.dept)),deptOnly:1};
-  shEl().innerHTML=coHtml(b,'P','shCouncilView()');window.scrollTo(0,0);return}
+  const pdf=b.meet?'<div class="card"><button class="button" type="button" style="width:100%" onclick="cmPdfGet(\''+escapeText(id)+'\',\'P\')">결과 PDF 내려받기</button><p class="muted" style="margin:6px 0 0">① 개최 공문 · ② 안건 · ③ 참석 현황</p></div>':'';  // S8-24
+  shEl().innerHTML=coHtml(b,'P','shCouncilView()',pdf);window.scrollTo(0,0);return}
  if(!shCoL){shEl().innerHTML='<div class="card"><p class="muted">불러오는 중…</p></div>';try{shCoL=(await shCall('scCouncils',{})).list||[]}catch(e){return}if(shV!=='council')return}
  shCoDraw()}
 function shCoDraw(y){const L=shCoL||[],e=escapeText,seen=shLS.get(SH_CO_SEEN,[]),by={};L.forEach(c=>{by[c.id]=c});
@@ -60,4 +78,4 @@ function shCoDraw(y){const L=shCoL||[],e=escapeText,seen=shLS.get(SH_CO_SEEN,[])
  shEl().innerHTML='<div class="card"><div class="shyr"><button type="button" aria-label="지난해"'+(y>Ys[0]?' onclick="shCoDraw('+(y-1)+')"':' disabled')+'>'+arrow(-1)+'</button><b>'+y+'년 협의체</b><button type="button" aria-label="다음 해"'+(y<Ys[Ys.length-1]?' onclick="shCoDraw('+(y+1)+')"':' disabled')+'>'+arrow(1)+'</button></div>'
   +'<div class="shmg">'+Array.from({length:12},(_,i)=>cell(i+1)).join('')+'</div>'
   +'<div class="shleg"><span><u style="box-shadow:inset 0 0 0 1.5px var(--accent)"></u>새 결과 (아직 안 봄)</span><span><u style="background:var(--main)"></u>본 결과</span><span>흐린 달 = 결과 없음</span></div>'
-  +(L.length?'':'<p class="muted" style="margin:8px 0 0">아직 협의체 결과가 없습니다. (매월 25일에 만들어집니다)</p>')+'</div>'}
+  +(L.length?'':'<p class="muted" style="margin:8px 0 0">아직 협의체 결과가 없습니다. (협의체 회의가 끝나면 올라옵니다)</p>')+'</div>'}

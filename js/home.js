@@ -22,7 +22,7 @@ let dsD=null,dsErr='',dsBusy=false,dsChk=null,dsTried=false;
 async function dashLoad(quiet){if(dsBusy)return;dsBusy=true;try{const [d,c]=await Promise.all([callQuiet('dashSum'),callQuiet('checkBoard').catch(()=>null)]);d._at=Date.now();dsD=d;if(c)dsChk=c}catch(e){if(!quiet)dsErr=(e&&e.message)||'불러오지 못했습니다.'}dsBusy=false;
  if(typeof sBadges==='function')sBadges(state.badges);if(tab==='jobs'&&smenu==='dash')renderJobs()}
 /** ☰ 빨간 숫자 = 처리할 것 합계 */
-function dashTodoN(){const B=(state&&state.badges)||{},D=dsD;if(!D&&!dsTried&&!dsBusy&&isStaffUI()&&!isCsUI()){dsTried=true;setTimeout(()=>dashLoad(true),0)}/* 다른 화면에서 시작해도 ☰ 숫자가 맞게 (한 번만) */return (B.admin||0)+(B.review||0)+(D?D.acc.late+D.ca.open+D.plan.wait:0)}
+function dashTodoN(){const B=(state&&state.badges)||{},D=dsD;if(!D&&!dsTried&&!dsBusy&&isStaffUI()&&!isCsUI()){dsTried=true;setTimeout(()=>dashLoad(true),0)}/* 다른 화면에서 시작해도 ☰ 숫자가 맞게 (한 번만) */return (B.admin||0)+(B.review||0)+(D?D.acc.late+D.ca.open+D.plan.wait+(D.meets||[]).filter(m=>m.late).length:0)}
 function dsRow(go,ic,red,t,sub,n){const e=escapeText;return '<button class="dsrow" type="button" onclick="'+go+'">'+shIc(ic,red)+'<span class="t"><b>'+e(t)+'</b>'+(sub?'<span>'+e(sub)+'</span>':'')+'</span>'+(n!==''&&n!=null?'<span class="dsn'+(red?' r':'')+'">'+n+'</span>':'')+shIc('right')+'</button>'}
 function sDash(){smIcons();if(typeof chkCss==='function')chkCss();const e=escapeText,me=state.staff||{};
  if(dsErr){const m=dsErr;dsErr='';return '<div class="card"><h2>오늘 할 일</h2><p class="muted">'+e(m)+'</p><button class="button" type="button" onclick="dashLoad()">다시 시도</button></div>'}
@@ -35,10 +35,12 @@ function sDash(){smIcons();if(typeof chkCss==='function')chkCss();const e=escape
  if(D.acc.open)todo.push(dsRow("sgo('vendors')",'alert',!!D.acc.late,D.acc.late?'재해 조치 기한 지남':'재해 조치 대기',D.acc.first?D.acc.first.storeName+' · '+String(D.acc.first.accDate).slice(5).replace('-','.')+' · '+D.acc.first.company:'',D.acc.late||D.acc.open));
  if(D.ca.open)todo.push(dsRow("sgo('ca')",'doc',!!D.ca.late,'시정요구서 미조치',(D.ca.late?'기한 지남 '+D.ca.late+' · ':'')+(D.ca.first?D.ca.first.storeName+' · '+D.ca.first.company:''),D.ca.open));
  if(D.plan.wait)todo.push(dsRow("sgo('half')",'star',false,'개선 계획 확인','반기 평가 70점 미만 · '+(D.plan.first?D.plan.first.company:''),D.plan.wait));
+ /* S8-24 회의일이 지났는데 [회의 종료]를 안 누른 협의체 회의 */
+ D.meets.filter(m=>m.late).forEach(m=>todo.push(dsRow("coRefreshTop('"+e(m.id)+"');sgo('co')",'cal',true,'협의체 회의 종료 안 함',Number(m.id.slice(5,7))+'월 · '+wd(m.date)+(m.hour?' '+Number(m.hour)+'시':'')+' · 업체 출석 '+(m.nIn||0)+'곳 · [회의 종료]를 눌러야 결과가 만들어집니다','')));
  let h='<div class="card"><h2 style="margin:0 0 4px">처리할 것</h2>'+(todo.join('')||'<p class="muted" style="margin:8px 0 0">오늘 처리할 일이 없습니다.</p>')+'</div>';
  if(dsChk&&dsChk.stores&&dsChk.stores.length){const w=dsChk.thisWeek,W=dsChk.weeks[w]||{},n=dsChk.stores.length,s=dsChk.stores.filter(r=>W[r[0]]).length,p=n?Math.round(s/n*100):0;
   h+='<div class="card"><h2 style="margin:0 0 4px">이번 주 점장 순회점검</h2>'+dsRow("sgo('check')",'check',false,'제출 '+s+' / '+n+' 매장',w.slice(5).replace('-','.')+' (월) 주 · 미제출 '+(n-s),'')+'<div class="dsbar"><i style="width:'+p+'%"></i></div></div>'}
- const up=D.meets.map(m=>dsRow("sgo('co')",'cal',m.status==='OPEN',m.id.slice(0,4)+'년 '+Number(m.id.slice(5,7))+'월 협의체 회의',wd(m.date)+(m.time?' '+m.time:'')+(m.place?' · '+m.place:'')+(m.status==='OPEN'?' · 진행 중':''),''))
+ const up=D.meets.filter(m=>!m.late).map(m=>dsRow("coRefreshTop('"+e(m.id)+"');sgo('co')",'cal',m.date===t,m.id.slice(0,4)+'년 '+Number(m.id.slice(5,7))+'월 협의체 회의',wd(m.date)+(m.hour?' '+Number(m.hour)+'시':m.time?' '+m.time:'')+' · 업체 출석 '+(m.nIn||0)+'곳'+(m.date===t?' · 오늘':''),''))
   .concat(D.joints.map(j=>dsRow("sgo('joint')",'users',j.status==='OPEN'||j.date<t,'합동점검 · '+j.storeName,wd(j.date)+(j.time?' '+j.time:'')+(j.csName?' · CS '+j.csName:'')+(j.date<t&&j.status!=='OPEN'?' · 날짜 지남':j.status==='OPEN'?' · 진행 중':''),'')));
  h+='<div class="card"><h2 style="margin:0 0 4px">다가오는 일정</h2>'+(up.join('')||'<p class="muted" style="margin:8px 0 0">예정된 회의 · 합동점검이 없습니다.</p>')+'</div>';
  return h}

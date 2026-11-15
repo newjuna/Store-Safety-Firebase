@@ -6,7 +6,7 @@
  * - 아직 옮기지 않은 기능은 '아직 Firebase로 옮기지 않은 기능' 안내
  */
 (function () {
-  const VERSION = '26.11.13 S8-23';
+  const VERSION = '26.11.15 S8-24';
   /* ---------- 기존 Code.gs와 같은 기준값 ---------- */
   /* F2.1 업종 '오픈지원' 추가 (매장 오픈 인력 · 인력사무소형) · 인테리어(마감) = 지금까지의 공사 흐름 그대로 */
   const CFG = {
@@ -997,16 +997,20 @@
   API.csCancel = async (a, token) => relay('csCancel', { token: tidy(token, 40) });
   API.csStop = async (a, email, on) => relay('csStop', { email: tidy(email, 120), on: !!on });
   /* S8-1 협의체 회의 · 참석 (본사 · 업체) */
+  /* S8-24 협의체 회의 개편: 날짜 · 시만 · 열면 개최 공문 메일 · 출석(업체 로그인 · 도급인 등록 · 도급인 직원) · 종료 = 결과 PDF (Drive 안 거침) */
   API.cmGet = async (a, id) => { await staffOnly(a); return relay('cmGet', { id: tidy(id, 7) }, true); };
   API.cmSave = async (a, d) => relay('cmSave', { d: d || {} }, false, 180000);
   API.cmMail = async (a, id, to) => relay('cmMail', { id: tidy(id, 7), ...(Array.isArray(to) ? { to: to.map((x) => tidy(x, 60)) } : {}) }, false, 180000);  // S8-5 to = 받을 업체
   API.cmDel = async (a, id) => relay('cmDel', { id: tidy(id, 7) }, false, 180000);
-  API.cmStart = async (a, id) => relay('cmStart', { id: tidy(id, 7) });
   API.cmAdd = async (a, id, name, companyId) => relay('cmAdd', { id: tidy(id, 7), name: tidy(name, 30), companyId: tidy(companyId, 60) });
   API.cmDrop = async (a, id, i) => relay('cmDrop', { id: tidy(id, 7), i: Number(i) });
-  API.cmDone = async (a, id) => relay('cmDone', { id: tidy(id, 7) });
+  API.cmHqIn = async (a, id, name) => { await staffOnly(a); return relay('cmHqIn', { id: tidy(id, 7), name: tidy(name, 30) }); };
+  API.cmDone = async (a, id) => relay('cmDone', { id: tidy(id, 7) }, false, 240000);
+  API.cmResult = async (a, id) => relay('cmResult', { id: tidy(id, 7) }, false, 240000);
+  API.cmPdf = async (a, id) => { await staffOnly(a); return relay('cmPdf', { id: tidy(id, 7) }, true, 180000); };
   API.cmVList = async () => relay('cmVList', {}, true);
-  API.cmVIn = async (a, id, name) => relay('cmVIn', { id: tidy(id, 7), name: tidy(name, 30) });  // S8-5 업체 화면 [참석]
+  API.cmVIn = async (a, id, name) => relay('cmVIn', { id: tidy(id, 7), name: tidy(name, 30) });  // 업체 화면 [출석]
+  API.cmVPdf = async (a, id) => relay('cmVPdf', { id: tidy(id, 7) }, true, 180000);
   /* S8-2 작업자 등록 · 재해 (업체 · 본사 보기) */
   API.wrMine = async () => relay('wrMine', {}, true);
   API.wrNew = async () => relay('wrNew', {});
@@ -2618,7 +2622,7 @@
   async function redirectResult() { try { const r = await auth.getRedirectResult(); if (r && r.user) { USER = r.user; return true; } } catch (e) { return loginError(e); } return false; }
   /* S3 점장 (로그인 없음): 이 기기 익명 계정 · 이미 구글로 로그인돼 있으면 그 계정 그대로 · 모든 요청은 중계 서버가 확인 (SM_OPS_) */
   async function anon() { await ready; if (!auth.currentUser) await auth.signInAnonymously(); USER = auth.currentUser; return USER.uid; }
-  const SC_READ = new Set(['scStores', 'scHome', 'scForm', 'scHistory', 'scDetail', 'scPic', 'scGuide', 'scCouncils', 'scCouncil', 'jtQr', 'cmQr', 'wrInfo']);
+  const SC_READ = new Set(['scStores', 'scHome', 'scForm', 'scHistory', 'scDetail', 'scPic', 'scGuide', 'scCouncils', 'scCouncil', 'scCmPdf', 'jtQr', 'wrInfo']);
   /* 점장 주소 코드 (…/?store=코드 · 처음 들어올 때 이 기기에 기억) 를 같이 보냄 · 중계 서버가 확인 */
   const shopKey = () => { try { return localStorage.getItem('shopKey') || ''; } catch (e) { return ''; } };
   const sm = (op, body, waitMs) => relay(op, { ...(body || {}), key: shopKey() }, SC_READ.has(op), waitMs);  // 제출 · 개선은 다시 보내지 않음 (두 번 저장 방지)
