@@ -53,12 +53,19 @@ function coTopPick(){const M=coL.meets||{};if(coTopP)return coTopP;const open=Ob
  let P=coL.today.slice(0,7);for(let i=0;i<24&&M[P];i++)P=cmNextP(P);return P}
 function coRefreshTop(id){coTopP=id||'';if(tab==='jobs'&&smenu==='co'&&!coSel)renderJobs()}
 function sCo(){if(!coL){coLoad();return '<div class="card"><h2>협의체</h2><p class="muted">불러오는 중입니다…</p></div>'}if(coL.err){const m=coL.err;coL=null;return '<div class="card"><h2>협의체</h2><p class="muted">'+escapeText(m)+'</p><button class="button" type="button" onclick="renderJobs()">다시 시도</button></div>'}const e=escapeText;
- if(coSel&&coCur&&coCur.id===coSel)return coCur.meet?coMeetHtml(coCur,'S','coBack()'):coHtml(coCur,'S','coBack()','');
+ if(coSel&&coCur&&coCur.id===coSel){const md=(coL.meets||{})[coSel],ed=isSafetyUI(),mk=md&&md.status==='DONE'&&ed?'<button class="button" type="button" style="width:100%;margin-top:10px" onclick="coMeetMake(\''+e(coSel)+'\')">회의 결과 만들기 (개최 공문 · 안건 · 참석 현황)</button>':'';
+  if(coCur.meet)return coMeetHtml(coCur,'S','coBack()');
+  /* S8-24 결과가 없는 끝난 회의 (예전 방식으로 끝남 · 결과 만들기 실패) */
+  if(coCur.noResult)return '<div class="card"><button class="button ghost" type="button" onclick="coBack()">← 협의체</button><h2 style="margin:12px 0 0">'+e(coMon(coSel))+' 안전보건협의체</h2>'
+   +'<div class="muted">회의 '+e(md?jtD(md.date)+(md.hour?' '+Number(md.hour)+'시':''):'')+(md?' · 업체 출석 '+md.nIn+' / '+md.nV:'')+'</div>'
+   +'<p class="muted" style="margin:10px 0 0">이 회의는 아직 결과(개최 공문 · 안건 · 참석 현황)가 없습니다. 예전 방식으로 끝났거나 결과 만들기가 실패한 회의입니다.</p>'+(mk||'<p class="muted" style="margin:8px 0 0">안전보건팀이 결과를 만들면 볼 수 있습니다.</p>')+'</div>';
+  /* 예전 25일 결과 파일 · 그 달에 끝난 회의가 있으면 회의 결과로 바꿀 수 있음 */
+  return coHtml(coCur,'S','coBack()',mk?'<div class="card"><p class="muted" style="margin:0">예전 25일 결과 파일입니다. 이 달 협의체 회의 결과로 다시 만들면 결과 PDF와 같은 화면이 됩니다.</p>'+mk+'</div>':'')}
  const P=coTopPick(),M=coL.meets||{},F={};(coL.list||[]).forEach(c=>{F[c.id]=c});
  const ids=[...new Set(Object.keys(M).filter(k=>M[k].status==='DONE').concat(Object.keys(F)))].sort().reverse();
- const row=id=>{const m=M[id],c=F[id],legacy=c&&!c.meet&&c.kind!=='MEET'&&!m,res=m&&c&&!legacy;
-  const sub=m?jtD(m.date)+(m.hour?' '+Number(m.hour)+'시':'')+(c?'':' · 결과 만들기 전'):'예전 25일 결과 파일 · '+coRng(c);
-  const go=c?"coOpen('"+e(id)+"')":"coRefreshTop('"+e(id)+"');window.scrollTo(0,0)";
+ const row=id=>{const m=M[id],c=F[id],res=!!(c&&(c.meet||c.kind==='MEET'));
+  const sub=m?jtD(m.date)+(m.hour?' '+Number(m.hour)+'시':'')+(res?'':c?' · 예전 25일 결과 파일':' · 결과 만들기 전'):'예전 25일 결과 파일 · '+coRng(c);
+  const go=c?"coOpen('"+e(id)+"')":"coOpenNoResult('"+e(id)+"')";
   return '<div class="row" style="gap:6px;align-items:center"><button class="shli" type="button" style="flex:1" onclick="'+go+'">'+shIc(m?'check':'doc')+'<span class="t"><b>'+e(coMon(id))+'</b><span class="muted">'+e(sub)+'</span></span>'+(m?'<span class="shpill ok">출석 '+m.nIn+' / '+m.nV+'</span>':'')+'<span aria-hidden="true">›</span></button>'
    +(res?'<button type="button" class="linkbtn" onclick="cmPdfGet(\''+e(id)+'\')">PDF ↓</button>':'')+'</div>'};
  return '<div class="card"><h2 style="margin:0">협의체</h2><div class="muted">매월 중순 정기 회의 · 회의를 열면 업체에 개최 공문 메일 · 회의 종료 = 결과 PDF (개최 공문 + 안건 + 참석 현황)</div>'
@@ -68,6 +75,11 @@ function sCo(){if(!coL){coLoad();return '<div class="card"><h2>협의체</h2><p 
   +'<p class="muted" style="margin:8px 0 0">누르면 결과(개최 공문 · 안건 · 참석 현황)를 봅니다. 예전 25일 결과 파일도 그대로 볼 수 있습니다.</p></div>'}
 async function coOpen(id){try{coCur=await call('coGet',id);coSel=id;jobsMode='form';renderJobs();window.scrollTo(0,0)}catch(e){}}
 function coBack(){coSel='';coCur=null;renderJobs()}
+/** S8-24 결과가 없는 끝난 회의 → 안내 + [회의 결과 만들기] 화면 */
+function coOpenNoResult(id){coCur={id,noResult:true};coSel=id;jobsMode='form';renderJobs();window.scrollTo(0,0)}
+/** S8-24 끝난 회의로 결과 만들기 (안건 = 지난 회의 다음 날 ~ 이 회의 전날 · 예전 25일 파일이 있으면 바뀜) → 결과 화면 */
+async function coMeetMake(id){if(!await askOk('회의 결과 만들기',coMon(id)+' 협의체 회의 결과(개최 공문 · 안건 · 참석 현황)를 지금 기록으로 만듭니다.'+((coL.list||[]).some(c=>c.id===id)?'\n이 달의 예전 25일 결과 파일은 회의 결과로 바뀝니다.':''),'만들기'))return;
+ try{await call('cmResult',id);coL=null;await coLoad();await coOpen(id);msg('결과를 만들었습니다.')}catch(e){}}
 async function coMakeNow(id){if(!await askOk('협의체 만들기',coMon(id)+' 협의체를 지금 기록으로 집계할까요?\n(이미 있으면 다시 만듭니다)','만들기'))return;try{coCur=await call('coMake',id);coSel=id;coL=null;await coLoad();msg('만들었습니다.')}catch(e){}}
 async function coMailNow(id){if(!await askOk('공문 메일',coMon(id)+' 협의체 결과를 입고도우미 업체 계약담당자에게 메일로 보낼까요?','보내기'))return;try{coCur=await call('coMail',id);coSel=id;coL=null;await coLoad();msg('보냈습니다 · '+coCur.mailCount+'통')}catch(e){}}
 
