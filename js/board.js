@@ -30,7 +30,9 @@
  *  F1.9q 빠르게: 한 번 본 목록은 이 기기에 저장 → 바로 보여 주고 뒤에서 최신으로 · 처리 중에는 가리는 창 대신 오른쪽 칸에 표시 · 확인도 오른쪽 칸 안에서 */
 let admT=null,admS={t:'issues'},admOpen=new Set(['co']),admFold=false,admRowsM={},admRowsL={},admChk=new Set(),admQ='',admXp=new Set(),admCf=null,admEdit=false,admPv=null,admBusy='',admMs=null,admMsCf=null;
 const ADM_CO_G=[['pend','승인 대기'],['draft','작성·보완'],['sub','검토 중'],['ok','승인'],['rej','반려']],ADM_JOB_G=[['open','진행 중','OPEN'],['ended','종료','ENDED']];
-const ADM_TBL=[['PERMITS','작업허가서'],['INSP','순회점검'],['FIND','지적사항'],['WORKERS','작업자'],['MEET','미팅'],['EVALS','종료 평가'],['MAIL','메일·Teams 기록']];
+/* S8-24 이 앱 기록 (공사 앱의 작업허가서 · 순회점검일지 · 미팅 표 · 🏗 공사는 뺌) */
+const ADM_TBL=[['WEEKLY','점장 순회점검'],['ISSUE','미흡 · 시정요구서'],['CMEET','협의체 회의'],['COUNCIL','협의체 결과'],['JOINT','합동점검'],['ACC','재해'],['WORKER','작업자'],['HALF','반기 평가'],['MAIL','메일 기록']];
+const ADM_TBL_HINT={WEEKLY:'지우면 그 점검의 미흡 · 시정요구서 · 점검 현황 숫자도 같이 빠지고, 사진은 Drive 휴지통으로 갑니다.',ISSUE:'그 건만 지웁니다 (점검표는 그대로).',CMEET:'지우면 그 달 회의 결과(PDF 내용)도 같이 지워집니다.',COUNCIL:'결과만 지웁니다 (회의 · 출석 기록은 그대로).',JOINT:'지우면 그 점검에서 보낸 시정요구서도 같이 지워지고, 사진은 Drive 휴지통으로 갑니다.',ACC:'대책 · 조치 사진도 Drive 휴지통으로 갑니다.',WORKER:'교육일지 서명도 같이 지워집니다.',HALF:'지운 반기는 반기 평가에서 [다시 계산]하면 새로 만들어집니다.',MAIL:''};
 const ADM_CO_PILL={pend:['승인 대기','w'],draft:['작성 중','k'],sub:['검토 중','b'],ok:['승인','g'],rej:['반려','r']};
 const admQt=s=>escapeText(String(s==null?'':s).replace(/[^A-Za-z0-9_.:-]/g,''));  // onclick 안에 넣는 ID (글자 제한)
 function admCss(){if(typeof orgCss==='function')orgCss();if($('admCss'))return;const s=document.createElement('style');s.id='admCss';s.textContent=
@@ -59,7 +61,7 @@ async function admLoad(){try{admT=await call('adminTree')}catch(e){const b=$('ad
 function admDraw(){const b=$('admBox');if(!b||!admT)return;admCss();const q=document.activeElement&&document.activeElement.id==='f_admQ';b.innerHTML='<div class="ogw"><nav class="ogs'+(admFold?' adfold':'')+'" aria-label="데이터 종류">'+admSide()+'</nav><section class="ogm" aria-live="polite">'+admMain()+'</section></div>';if(admS.t==='tbl'&&$('admTb'))admTb();if(q){const e=$('f_admQ');if(e){e.focus();e.setSelectionRange(admQ.length,admQ.length)}}}
 function admGo(s){if(admBusy)return;const same=admS.t==='tbl'&&s.t==='tbl'&&admS.sub===s.sub;admS=s;admCf=null;admEdit=false;admPv=null;admMsCf=null;if(!same){admChk=new Set();admQ='';admXp=new Set()}if(['co','job','tbl'].includes(s.t))admOpen.add(s.t);
  if(s.t==='tbl'&&!same)admRowsLoad(s.sub);if(s.t==='perm')admMsLoad();admDraw();window.scrollTo(0,0)}
-function admTg(k){if(admOpen.has(k)){admOpen.delete(k);admDraw();return}admGo({t:k,sub:{co:'pend',job:'open',tbl:'PERMITS'}[k]})}
+function admTg(k){if(admOpen.has(k)){admOpen.delete(k);admDraw();return}admGo({t:k,sub:{co:'pend',job:'open',tbl:'WEEKLY'}[k]})}
 /* 왼쪽 */
 function admSide(){if(admFold)return '<div class="ogsh" style="justify-content:center"><button type="button" onclick="admFold=false;admDraw()" aria-label="목록 펼치기">»</button></div>';
  const d=admT,on=(t,sub)=>admS.t===t&&(sub===undefined||admS.sub===sub)&&!admS.id?' on':'',on2=(t,sub)=>admS.t===t&&admS.sub===sub?' on':'',n=(v,r)=>'<span class="adn'+(r&&v?' r':'')+'">'+v+'</span>';
@@ -68,15 +70,14 @@ function admSide(){if(admFold)return '<div class="ogsh" style="justify-content:c
  return '<div class="ogsh">데이터<button type="button" onclick="admFold=true;admDraw()" aria-label="목록 접기 (오른쪽 넓게)">«</button></div>'
   +item(on('issues'),'issues','','⚠ 손볼 것',d.issues.length,1)
   +grp('co','🏢 업체',d.co.length)+(admOpen.has('co')?ADM_CO_G.map(g=>item(' adsub'+on2('co',g[0]),'co',g[0],g[1],d.co.filter(c=>c.g===g[0]).length)).join(''):'')
-  +grp('job','🏗 공사',d.job.length)+(admOpen.has('job')?ADM_JOB_G.map(g=>item(' adsub'+on2('job',g[0]),'job',g[0],g[1],d.job.filter(j=>j.st===g[2]).length)).join(''):'')
-  +grp('tbl','📋 표로 보기','')+(admOpen.has('tbl')?ADM_TBL.map(g=>item(' adsub'+on2('tbl',g[0]),'tbl',g[0],g[1],d.cnt[g[0]]||0)).join(''):'')
+  +grp('tbl','📋 기록 (표로 보기 · 지우기)','')+(admOpen.has('tbl')?ADM_TBL.map(g=>item(' adsub'+on2('tbl',g[0]),'tbl',g[0],g[1],d.cnt[g[0]]||0)).join(''):'')
   +item(on('perm'),'perm','','🔑 마스터 권한','')+item(on('logs'),'logs','','🧾 오래된 이력','')+item(on('reset'),'reset','','⛔ 전체 초기화','')}
 /* 오른쪽 */
 const admSubOf=(k,id)=>{if(k==='co'){const c=admT.co.find(x=>x.id===id);return c?c.g:'pend'}const j=admT.job.find(x=>x.id===id);return j&&j.st==='ENDED'?'ended':'open'};
 const admBusyBox=()=>'<div class="adbusy" role="status"><i aria-hidden="true"></i><span>'+escapeText(admBusy)+'</span></div>';
 function admMain(){const d=admT,s=admS;if(admBusy&&s.t!=='tbl'&&s.t!=='perm')return admBusyBox();
  if(s.t==='issues')return '<div class="ogt">⚠ 손볼 것</div>'+(d.issues.length?d.issues.map(x=>'<button type="button" class="adr" onclick="admGo({t:\''+x.k+'\',sub:\''+admSubOf(x.k,x.id)+'\',id:\''+admQt(x.id)+'\'})"><span class="nm"><b>'+escapeText(x.n)+'</b><small class="r">'+escapeText(x.w)+'</small></span><i aria-hidden="true">›</i></button>').join(''):'<div class="adempty">✔ 손볼 것이 없습니다</div>')
-  +'<p class="muted" style="font-size:11.5px;margin-top:12px">메일·Teams 실패(7일) · 조직도에 없는 담당 이메일 · 승인/검토 대기 7일 · 종료일 지남 · 종료 후 평가 미확정 3일을 자동으로 찾습니다.</p>';
+  +'<p class="muted" style="font-size:11.5px;margin-top:12px">메일·Teams 실패(7일) · 조직도에 없는 담당 이메일 · 승인/검토 대기 7일을 자동으로 찾습니다.</p>';
  if(s.t==='co'&&!s.id){const g=ADM_CO_G.find(x=>x[0]===s.sub)||ADM_CO_G[0],L=d.co.filter(c=>c.g===g[0]);
   return '<div class="ogt">'+g[1]+'</div>'+(L.length?L.map(c=>'<button type="button" class="adr" onclick="admGo({t:\'co\',sub:\''+g[0]+'\',id:\''+admQt(c.id)+'\'})"><span class="nm"><b>'+escapeText(c.name)+'</b><small'+(c.fail||c.noOrg?' class="r"':'')+'>'+escapeText(admCoLine(c))+'</small></span><i aria-hidden="true">›</i></button>').join(''):'<div class="adempty">없습니다</div>')}
  if(s.t==='co')return admCoView();
@@ -87,8 +88,8 @@ function admMain(){const d=admT,s=admS;if(admBusy&&s.t!=='tbl'&&s.t!=='perm')ret
  if(s.t==='perm')return admMsView();
  if(s.t==='logs')return '<div class="ogt">🧾 오래된 이력 지우기</div><div class="adst">사용 이력 · 메일·Teams 기록 중 오래된 것만 (지금 '+Number(d.logs||0).toLocaleString()+'건) · 업무 기록은 그대로</div>'
   +(admCf?admCfBox():[30,90,180].map(n=>'<button type="button" class="adbig" onclick="admAskPv({kind:\'logs\',days:'+n+'})">'+n+'일 지난 것</button>').join(''));
- if(s.t==='reset')return '<div class="ogt">⛔ 전체 초기화</div><div class="adst">운영 시작 전 테스트 기록을 모두 지울 때만 씁니다. 직원 명단 · 조직도 · 표준양식 · 로그인 계정은 남습니다. 드라이브 파일은 휴지통으로 (30일 안에 복구 가능).</div>'
-  +(admCf?admCfBox():'<div class="adcf"><b>모든 업체 · 공사 · 기록을 지웁니다</b><p>되돌릴 수 없습니다. 아래 칸에 삭제 라고 적어야 버튼이 켜집니다.</p><input class="adinp" id="f_admAll" autocomplete="off" placeholder="삭제" aria-label="확인 글자 (삭제)" oninput="$(\'admAllBtn\').disabled=this.value.trim()!==\'삭제\'"><button type="button" class="adbtn d" id="admAllBtn" disabled onclick="admAskPv({kind:\'all\'})">지울 개수 보기</button></div>');
+ if(s.t==='reset')return '<div class="ogt">⛔ 전체 초기화</div><div class="adst">운영 시작 전 테스트 기록을 모두 지울 때만 씁니다.<br><b>지움</b>: 업체 · 계약 서류 · 점장 순회점검과 현황 · 미흡 · 시정요구서 · 협의체 회의 · 결과 · 합동점검 · 재해 · 작업자 · 반기 평가 · 메일 · 사용 이력<br><b>남김</b>: 직원 명단 · 조직도 · 매장 목록 · 부서 · 점검 항목 · 가이드 사진 · 도급인 책임자 · 점장 주소 코드 · 표준양식 · CS팀 담당자 · 로그인 계정<br>드라이브 파일은 휴지통으로 (30일 안에 복구 가능).</div>'
+  +(admCf?admCfBox():'<div class="adcf"><b>모든 업체 · 기록을 지웁니다</b><p>되돌릴 수 없습니다. 아래 칸에 삭제 라고 적어야 버튼이 켜집니다.</p><input class="adinp" id="f_admAll" autocomplete="off" placeholder="삭제" aria-label="확인 글자 (삭제)" oninput="$(\'admAllBtn\').disabled=this.value.trim()!==\'삭제\'"><button type="button" class="adbtn d" id="admAllBtn" disabled onclick="admAskPv({kind:\'all\'})">지울 개수 보기</button></div>');
  return ''}
 function admCoLine(c){return c.g==='pend'?'신청 '+c.days+'일째'+(c.fail?' · 메일 실패':c.noOrg?' · 조직도에 없는 주소':''):c.g==='sub'?'제출 '+c.days+'일째':c.g==='ok'?'승인 '+c.at:c.g==='rej'?'반려':(c.sub==='CORRECTION'?'보완 요청':'작성 중')+(c.renew?' · 재평가':'')}
 function admCoView(){const c=admT.co.find(x=>x.id===admS.id);if(!c)return '<div class="adempty">이미 지워졌습니다</div>';const p=ADM_CO_PILL[c.g]||['','k'];
@@ -148,9 +149,11 @@ function admTblView(){const k=admS.sub,t=ADM_TBL.find(x=>x[0]===k)||ADM_TBL[0],D
  if(!D){admRowsLoad(k);return '<div class="ogt">📋 '+t[1]+'</div><div class="adempty">불러오는 중입니다…</div>'}
  const all=D.rows;[...admChk].forEach(id=>{if(!all.some(r=>r.id===id))admChk.delete(id)});const kids=all.filter(r=>admChk.has(r.id)).reduce((s,r)=>s+(r.kids||0),0);
  return '<div class="ogt">📋 '+t[1]+' <span class="muted" style="font-weight:400;font-size:12px">'+all.length+'줄'+(D.more?' (최근 300줄만)':'')+'</span></div>'
-  +'<input class="adsrch" id="f_admQ" placeholder="🔍 업체 · 공사 · 날짜로 거르기" value="'+escapeText(admQ)+'" oninput="admQ=this.value;admTb()" aria-label="표 거르기">'
+  +(ADM_TBL_HINT[k]?'<div class="adst">'+escapeText(ADM_TBL_HINT[k])+'</div>':'')
+  +'<input class="adsrch" id="f_admQ" placeholder="🔍 매장 · 업체 · 날짜로 거르기" value="'+escapeText(admQ)+'" oninput="admQ=this.value;admTb()" aria-label="표 거르기">'
   +'<div id="admTb"></div>'
-  +(admBusy?admBusyBox():admCf&&admCf.k==='tbl'?admCfBox():'<div class="adsel">'+(admChk.size?'<button type="button" class="adbtn d" onclick="admCf={k:\'tbl\',rows:'+admChk.size+',kids:'+kids+'};admDraw()">🗑 선택한 '+admChk.size+'줄 지우기'+(kids?' (+딸린 '+kids+'건)':'')+'</button>':'<div class="muted" style="font-size:12px;text-align:center">☐ 체크해서 지울 줄을 고르세요 · 줄을 누르면 내용이 펼쳐집니다</div>')+'</div>')}
+  +(admBusy?admBusyBox():admCf&&admCf.k==='tbl'?admCfBox():admCf&&admCf.k==='pv'?admCfBox():'<div class="adsel">'+(admChk.size?'<button type="button" class="adbtn d" onclick="admCf={k:\'tbl\',rows:'+admChk.size+',kids:'+kids+'};admDraw()">🗑 선택한 '+admChk.size+'줄 지우기'+(kids?' (+딸린 '+kids+'건)':'')+'</button>':'<div class="muted" style="font-size:12px;text-align:center">☐ 체크해서 지울 줄을 고르세요 · 줄을 누르면 내용이 펼쳐집니다</div>')
+   +(all.length&&!admChk.size?'<button type="button" class="addel" onclick="admAskPv({kind:\'type\',id:\''+admQt(k)+'\'})">🗑 '+escapeText(t[1])+' 모두 지우기</button>':'')+'</div>')}
 function admTbL(){const q=admQ.trim(),D=admRowsM[admS.sub];return (D?D.rows:[]).filter(r=>!q||(r.a+' '+r.b).includes(q))}
 function admTb(){const el=$('admTb');if(!el||!admRowsM[admS.sub])return;const L=admTbL(),allOn=L.length&&L.every(r=>admChk.has(r.id));
  el.innerHTML='<div class="adtbar"><label><input type="checkbox" '+(allOn?'checked':'')+' onchange="admCkAll(this.checked)"> 보이는 것 모두</label><span style="margin-left:auto">'+L.length+'줄</span></div>'
