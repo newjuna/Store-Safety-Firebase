@@ -61,12 +61,12 @@ function coTopPick(){const M=coL.meets||{};if(coTopP)return coTopP;const open=Ob
 function coRefreshTop(id){coTopP=id||'';if(tab==='jobs'&&smenu==='co'&&!coSel)renderJobs()}
 function sCo(){if(!coL){const c=typeof cacheGet==='function'?cacheGet('coList',[]):null;if(c&&Array.isArray(c.list)&&!c.err){coL=c;coL._c=1;coTopSet(c.top);setTimeout(()=>coLoad(true),0)}}  // S8-26 저장해 둔 것 먼저
  if(!coL){coLoad();return '<div class="card"><h2>협의체</h2><p class="muted">불러오는 중입니다…</p></div>'}if(coL.err){const m=coL.err;coL=null;return '<div class="card"><h2>협의체</h2><p class="muted">'+escapeText(m)+'</p><button class="button" type="button" onclick="renderJobs()">다시 시도</button></div>'}const e=escapeText;
- if(coSel&&coCur&&coCur.id===coSel){const md=(coL.meets||{})[coSel],ed=isSafetyUI(),mk=md&&md.status==='DONE'&&ed?'<button class="button" type="button" style="width:100%;margin-top:10px" onclick="coMeetMake(\''+e(coSel)+'\')">회의 결과 만들기 (개최 공문 · 안건 · 참석 현황)</button>':'';
+ if(coSel&&coCur&&coCur.id===coSel){const md=(coL.meets||{})[coSel],ed=isSafetyUI()||(!!state.staff&&state.staff.role==='CLIENT'&&!isCsUI()),mk=md&&md.status==='DONE'&&ed?'<button class="button" type="button" style="width:100%;margin-top:10px" onclick="coMeetMake(\''+e(coSel)+'\')">회의 결과 만들기 (개최 공문 · 안건 · 참석 현황)</button>':'';
   if(coCur.meet)return coMeetHtml(coCur,'S','coBack()');
   /* S8-24 결과가 없는 끝난 회의 (예전 방식으로 끝남 · 결과 만들기 실패) */
   if(coCur.noResult)return '<div class="card"><button class="button ghost" type="button" onclick="coBack()">← 협의체</button><h2 style="margin:12px 0 0">'+e(coMon(coSel))+' 안전보건협의체</h2>'
    +'<div class="muted">회의 '+e(md?jtD(md.date)+(md.hour?' '+Number(md.hour)+'시':''):'')+(md?' · 업체 출석 '+md.nIn+' / '+md.nV:'')+'</div>'
-   +'<p class="muted" style="margin:10px 0 0">이 회의는 아직 결과(개최 공문 · 안건 · 참석 현황)가 없습니다. 예전 방식으로 끝났거나 결과 만들기가 실패한 회의입니다.</p>'+(mk||'<p class="muted" style="margin:8px 0 0">안전보건팀이 결과를 만들면 볼 수 있습니다.</p>')+'</div>';
+   +'<p class="muted" style="margin:10px 0 0">이 회의는 아직 결과(개최 공문 · 안건 · 참석 현황)가 없습니다. 예전 방식으로 끝났거나 결과 만들기가 실패한 회의입니다.</p>'+(mk||'<p class="muted" style="margin:8px 0 0">안전보건팀 · 도급인 담당자가 결과를 만들면 볼 수 있습니다.</p>')+'</div>';
   /* 예전 25일 결과 파일 = 같은 ① ② ③ 모양 · 그 달에 끝난 회의가 있으면 회의 결과로 바꿀 수 있음 */
   return coMeetHtml(coCur,'S','coBack()',mk?'<p class="muted" style="margin:10px 0 0">이 달에 끝난 협의체 회의가 있습니다. 회의 결과로 다시 만들면 개최 공문 · 참석 현황까지 들어갑니다.</p>'+mk:'')}
  const P=coTopPick(),M=coL.meets||{},F={};(coL.list||[]).forEach(c=>{F[c.id]=c});
