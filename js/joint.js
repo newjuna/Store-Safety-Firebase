@@ -1,4 +1,6 @@
 /* S7 분기 합동점검 — 도급인 주최 · CS팀 담당자 + 입고도우미 업체 참여자 (점장은 참석 안 함)
+ *  S8-25 분기 고르기 = 연도 ‹ › + 4분기 칸 (시안 06_시안/입고도우미_합동점검_지난분기조회시안_보기.html) · 끝난 분기 = 보기 전용 · 미리 배정 = 다음 분기까지
+ *        끝난 분기에 시작 안 한 배정 = 미실시 (시작 · 고치기 · 메일 안 됨 · 안전보건팀 · 도급인 담당자가 기록 지우기)
  *  본사 ☰ 합동점검: 분기 목록 · 매장 배정(날짜 · CS팀 · 업체 → 안내 메일) · 안내문 A4 · CS팀 담당자 초대 링크
  *  CS팀 담당자 (휴대폰 · 구글 로그인 · 메뉴는 합동점검만): 내 합동점검 → 참석(QR) → 점검표 → 완료
  *  업체 대시보드: 일정 · 참여자 이름 / 참석 QR(?review=JNT-…) = 로그인 없이 이름만 / 초대 링크(?review=CSI-…) = 구글 로그인 + 이름
@@ -11,11 +13,20 @@ const jtWhen=x=>jtD(x.date)+(x.time?' '+x.time:'');
 const jtQName=Q=>Q?Q.slice(0,4)+'년 '+Q.slice(6)+'분기':'';
 const jtQOf=d=>d.slice(0,4)+'-Q'+(Math.floor((Number(d.slice(5,7))-1)/3)+1);
 const jtQAdd=(Q,n)=>{let y=Number(Q.slice(0,4)),q=Number(Q.slice(6))+n;while(q>4){q-=4;y++}while(q<1){q+=4;y--}return y+'-Q'+q};
+/** S8-25 분기 마지막 날 (yyyy-mm-dd) */
+const jtQEnd=Q=>{const y=Number(Q.slice(0,4)),m=Number(Q.slice(6))*3;return y+'-'+('0'+m).slice(-2)+'-'+('0'+new Date(Date.UTC(y,m,0)).getUTCDate()).slice(-2)};
 const jtLink=(pre,t)=>location.origin+location.pathname+'?review='+pre+'-'+t;
+/** S8-25 끝난 분기 (오늘이 속한 분기보다 앞) 에 시작 안 한 배정 = 미실시 (시작 · 고치기 · 메일 안 됨 · 지우기만) */
+const jtMissed=(x,today)=>!!x&&x.status==='PLAN'&&!!x.quarter&&x.quarter<jtQOf(today||kstToday());
 /** 상태 [글, 색] */
-function jtSt(x,today){if(x.status==='DONE')return ['완료','ok'];if(x.status==='OPEN')return ['진행 중','no'];if(x.date<today)return ['지남','no'];if(x.date===today)return ['오늘','no'];return ['예정','']}
-function jtCss(){if(typeof shCss==='function')shCss();if(typeof chkCss==='function')chkCss();if($('jtCss'))return;const s=document.createElement('style');s.id='jtCss';s.textContent=
- '.jtreq{width:100%;margin-top:8px;border:1px solid var(--accent)!important;color:var(--accent)!important;background:#fff!important}.jtreq.on{background:var(--accent)!important;color:#fff!important}'
+function jtSt(x,today){if(x.status==='DONE')return ['완료','ok'];if(jtMissed(x,today))return ['미실시','no'];if(x.status==='OPEN')return ['진행 중','no'];if(x.date<today)return ['지남','no'];if(x.date===today)return ['오늘','no'];return ['예정','']}
+function jtCss(){if(typeof shCss==='function')shCss();if(typeof chkCss==='function')chkCss();if(typeof shRecCss==='function')shRecCss();if($('jtCss'))return;const s=document.createElement('style');s.id='jtCss';s.textContent=
+ /* S8-25 연도 ‹ › + 4분기 칸 */
+ '.jtqg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}.jtq{position:relative;border:1px solid var(--line);border-radius:12px;padding:11px 4px 9px;background:#fff;text-align:center;cursor:pointer;font:inherit;color:var(--sub);min-height:62px}'
+ +'.jtq b{display:block;font-size:14px;color:var(--text);margin-bottom:2px}.jtq span{font-size:11.5px;line-height:1.3;display:block}.jtq.on{border-color:var(--main);box-shadow:inset 0 0 0 1.5px var(--main)}.jtq:disabled{background:#fafafa;opacity:.45;cursor:default}'
+ +'.jtq.now::after{content:"지금";position:absolute;top:-8px;left:50%;transform:translateX(-50%);font-size:10px;font-weight:700;background:var(--main);color:#fff;border-radius:5px;padding:0 6px;line-height:16px}'
+ +'.jtq u{position:absolute;top:7px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--accent)}.chknum.jt6{grid-template-columns:repeat(6,1fr)}.chknum.jt6 b{font-size:16px}.chknum.jt6 span{font-size:11px}'
+ +'.jtreq{width:100%;margin-top:8px;border:1px solid var(--accent)!important;color:var(--accent)!important;background:#fff!important}.jtreq.on{background:var(--accent)!important;color:#fff!important}'
  +'.jtqr{display:block;width:220px;height:220px;margin:6px auto;border:1px solid var(--line);border-radius:12px;background:#fff}.jtav{width:28px;height:28px;border-radius:50%;background:var(--bg);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}'
  +'.jtwho{display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--line)}.jtwho:first-of-type{border-top:0}.jtwho .t{flex:1;min-width:0}'
  +'.jtdoc{background:#fff;color:#111;font:13px/1.6 "Malgun Gothic",sans-serif;padding:18px}.jtdoc h1{font-size:20px;text-align:center;margin:0 0 14px}.jtdoc table{width:100%;border-collapse:collapse}.jtdoc th,.jtdoc td{border:1px solid #333;padding:7px 9px;text-align:left;vertical-align:top}.jtdoc th{background:#f3f4f6;width:22%;white-space:nowrap}.jtdoc .law{margin:12px 0;padding:10px;border:1px solid #333}';document.head.appendChild(s)}
@@ -33,17 +44,34 @@ function sJt(){jtCss();if(!jtB){jtLoad();return jtCard('합동점검','<p class=
  if(jtB.cs&&!jtB.autoDone){jtB.autoDone=true;const t=jtB.today,x=jtB.mine.find(y=>y.status==='OPEN')||jtB.mine.find(y=>y.status==='PLAN'&&y.date===t);if(x){setTimeout(()=>jtOpen(x.id),0)}}
  return jtB.cs?jtMineHtml(jtB.mine,true):jtBoardHtml()}
 function jtQGo(Q){jtQ=Q;jtB=null;renderJobs()}
-function jtBoardHtml(){const B=jtB,t=B.today,L=B.list,e=escapeText,cur=jtQOf(t);
- const n={done:L.filter(x=>x.status==='DONE').length,late:L.filter(x=>x.status!=='DONE'&&x.date<t).length};n.plan=L.length-n.done-n.late;
- let h='<div class="card"><div class="vh-top" style="align-items:center"><h2 style="margin:0">'+e(jtQName(B.quarter))+' 합동점검</h2><span class="shpill">'+e(B.range.from.slice(5).replace('-','.')+' ~ '+B.range.to.slice(5).replace('-','.'))+'</span></div>'
-  +'<div class="seg" role="tablist">'+[jtQAdd(cur,-1),cur,jtQAdd(cur,1)].map(Q=>'<button type="button" role="tab" aria-selected="'+(Q===B.quarter)+'" class="'+(Q===B.quarter?'on':'')+'" onclick="jtQGo(\''+Q+'\')">'+e(jtQName(Q))+'</button>').join('')+'</div>'
-  +'<div class="chknum"><div><b>'+L.length+'</b><span>대상 매장</span></div><div><b>'+n.done+'</b><span>완료</span></div><div><b>'+n.plan+'</b><span>예정</span></div><div class="'+(n.late?'r':'')+'"><b>'+n.late+'</b><span>지남</span></div></div>'
-  +(L.length?'<table class="rtable chkt" style="margin-top:10px"><tr><th>매장</th><th>날짜</th><th>CS팀</th><th>업체</th><th></th></tr>'+L.map(x=>{const [s,c]=jtSt(x,t);return '<tr class="go" onclick="jtOpen(\''+e(x.id)+'\')"><td><b>'+e(x.storeName)+'</b></td><td>'+e(jtD(x.date))+'</td><td>'+e(x.csName)+'</td><td>'+e(x.company)+(x.status==='PLAN'&&!x.person?'<div class="muted">참여자 미정</div>':'')+'</td><td><span class="shpill '+c+'">'+s+'</span></td></tr>'}).join('')+'</table>':'<p class="muted" style="margin:10px 0 0">배정한 매장이 없습니다.</p>')
-  +(B.canEdit?'<button class="button ghost" type="button" style="width:100%;margin-top:10px" onclick="jtNew()">＋ 매장 추가</button>':'')+'</div>';
+/** S8-25 연도 ‹ ›: 그 해에 이번 분기가 있으면 이번 분기 · 다음 해면 다음 분기 · 지난해면 그 해 4분기 (처음 배정한 분기보다 앞이면 그 분기) */
+function jtYGo(y){const B=jtB;if(!B||!B.curQ)return;let Q=String(y)===B.curQ.slice(0,4)?B.curQ:String(y)===B.nextQ.slice(0,4)?B.nextQ:y+'-Q4';if(Q<B.firstQ)Q=B.firstQ;if(Q>B.nextQ)Q=B.nextQ;jtQGo(Q)}
+/** S8-25 연도 ‹ › + 4분기 칸 (점장 「협의체 결과」 12달 칸과 같은 모양) · 고를 수 있는 칸 = 처음 배정한 분기 ~ 다음 분기 · 빨간 점 = 미실시 있음 */
+function jtYearHtml(){const B=jtB,e=escapeText,Y=Number(B.quarter.slice(0,4)),fy=Number(B.firstQ.slice(0,4)),ny=Number(B.nextQ.slice(0,4)),S=B.year||{};
+ const cell=k=>{const Q=Y+'-Q'+k,s=S[Q]||{n:0,done:0,miss:0},off=Q<B.firstQ||Q>B.nextQ,on=Q===B.quarter;
+  const txt=off?'&nbsp;':Q>B.curQ?(s.n?s.n+'곳':'배정 가능'):s.n?s.n+'곳 · 완료 '+s.done:'배정 없음';
+  return '<button type="button" class="jtq'+(on?' on':'')+(Q===B.curQ?' now':'')+'"'+(off?' disabled':' onclick="jtQGo(\''+Q+'\')"')+' aria-pressed="'+on+'" aria-label="'+e(jtQName(Q))+(s.miss?' · 미실시 '+s.miss:'')+'">'+(s.miss&&!off?'<u></u>':'')+'<b>'+k+'분기</b><span>'+txt+'</span></button>'};
+ const arrow=d=>'<svg viewBox="0 0 24 24"><path d="'+(d<0?'m14.5 6-6 6 6 6':'m9.5 6 6 6-6 6')+'"/></svg>';
+ return '<div class="shyr" style="margin:0"><button type="button" aria-label="지난해"'+(Y>fy?' onclick="jtYGo('+(Y-1)+')"':' disabled')+'>'+arrow(-1)+'</button><b>'+Y+'년 합동점검</b><button type="button" aria-label="다음 해"'+(Y<ny?' onclick="jtYGo('+(Y+1)+')"':' disabled')+'>'+arrow(1)+'</button></div>'
+  +'<div class="jtqg">'+[1,2,3,4].map(cell).join('')+'</div>'}
+function jtBoardHtml(){const B=jtB,t=B.today;if(!B.curQ){B.curQ=jtQOf(t);B.nextQ=jtQAdd(B.curQ,1);B.firstQ=B.quarter<B.curQ?B.quarter:B.curQ;B.ended=B.quarter<B.curQ}  // Apps Script를 아직 새로 배포 안 했을 때
+ const L=B.list,e=escapeText,rg=B.range.from.slice(5).replace('-','.')+' ~ '+B.range.to.slice(5).replace('-','.');
+ let h='<div class="card">'+jtYearHtml()+'<div class="vh-top" style="align-items:center;margin-top:16px"><h2 style="margin:0">'+e(B.quarter.slice(6))+'분기 · '+e(rg)+'</h2><span class="shpill">'+(B.ended?'끝난 분기':B.quarter===B.curQ?'이번 분기':'다음 분기')+'</span></div>';
+ if(B.ended){  /* S8-25 끝난 분기 = 보기 전용 결과 표 */
+  const D=L.filter(x=>x.status==='DONE'),miss=L.filter(x=>x.status==='PLAN').length,vin=D.filter(x=>x.vendorIn).length,bad=D.reduce((s,x)=>s+(Number(x.bad)||0),0),req=D.reduce((s,x)=>s+(Number(x.req)||0),0);
+  h+='<div class="chknum jt6"><div><b>'+L.length+'</b><span>대상</span></div><div><b>'+D.length+'</b><span>완료</span></div><div class="'+(miss?'r':'')+'"><b>'+miss+'</b><span>미실시</span></div><div class="'+(vin<D.length?'r':'')+'"><b>'+vin+'/'+D.length+'</b><span>업체 참석</span></div><div class="'+(bad?'r':'')+'"><b>'+bad+'</b><span>불량</span></div><div class="'+(req?'r':'')+'"><b>'+req+'</b><span>조치 요청</span></div></div>'
+   +(L.length?'<table class="rtable chkt" style="margin-top:10px"><tr><th>매장</th><th>날짜</th><th>업체</th><th>업체 참석</th><th class="n">불량</th><th class="n">요청</th><th></th></tr>'+L.map(x=>{const [s,c]=jtSt(x,t),dn=x.status==='DONE',nb=Number(x.bad)||0,nr=Number(x.req)||0;
+     return '<tr class="go" onclick="jtOpen(\''+e(x.id)+'\')"><td style="white-space:nowrap"><b>'+e(x.storeName)+'</b></td><td style="white-space:nowrap">'+e(String(x.date||'').slice(5).replace('-','.'))+'</td><td>'+e(x.company)+'</td><td'+(dn&&!x.vendorIn?' class="r"':'')+'>'+(dn?(x.vendorIn?'참석':'불참'):'—')+'</td><td class="n'+(nb?' r':'')+'">'+(dn?nb:'—')+'</td><td class="n'+(nr?' r':'')+'">'+(dn?nr:'—')+'</td><td><span class="shpill '+c+'">'+s+'</span></td></tr>'}).join('')+'</table>'
+    :'<p class="muted" style="margin:10px 0 0">이 분기에는 배정한 매장이 없습니다.</p>')
+   +'<p class="muted" style="margin:8px 0 0">끝난 분기 · 보기 전용'+(miss?' · 미실시 = 날짜가 지났는데 시작 안 한 배정':'')+'</p></div>'}
+ else{const n={done:L.filter(x=>x.status==='DONE').length,late:L.filter(x=>x.status!=='DONE'&&x.date<t).length};n.plan=L.length-n.done-n.late;
+  h+='<div class="chknum"><div><b>'+L.length+'</b><span>대상 매장</span></div><div><b>'+n.done+'</b><span>완료</span></div><div><b>'+n.plan+'</b><span>예정</span></div><div class="'+(n.late?'r':'')+'"><b>'+n.late+'</b><span>지남</span></div></div>'
+   +(L.length?'<table class="rtable chkt" style="margin-top:10px"><tr><th>매장</th><th>날짜</th><th>CS팀</th><th>업체</th><th></th></tr>'+L.map(x=>{const [s,c]=jtSt(x,t);return '<tr class="go" onclick="jtOpen(\''+e(x.id)+'\')"><td><b>'+e(x.storeName)+'</b></td><td>'+e(jtD(x.date))+'</td><td>'+e(x.csName)+'</td><td>'+e(x.company)+(x.status==='PLAN'&&!x.person?'<div class="muted">참여자 미정</div>':'')+'</td><td><span class="shpill '+c+'">'+s+'</span></td></tr>'}).join('')+'</table>':'<p class="muted" style="margin:10px 0 0">배정한 매장이 없습니다.</p>')
+   +(B.canEdit?'<button class="button ghost" type="button" style="width:100%;margin-top:10px" onclick="jtNew()">＋ 매장 추가</button>':'')+'</div>'}
  if(B.mine.length)h+=jtMineHtml(B.mine,false);
  h+=jtCsHtml();return h}
 /** 내 합동점검 (CS팀 담당자 · 배정된 본사 직원) */
-function jtMineHtml(M,full){const t=(jtB&&jtB.today)||kstToday(),e=escapeText,up=M.filter(x=>x.status!=='DONE'),done=M.filter(x=>x.status==='DONE').reverse();
+function jtMineHtml(M,full){const t=(jtB&&jtB.today)||kstToday(),e=escapeText,up=M.filter(x=>x.status!=='DONE'&&!jtMissed(x,t)),done=M.filter(x=>x.status==='DONE').reverse();
  const row=x=>{const [s,c]=jtSt(x,t);return '<button class="shli" type="button" onclick="jtOpen(\''+e(x.id)+'\')">'+shIc(x.status==='DONE'?'check':'store',c==='no')+'<span class="t"><b>'+e(x.storeName)+'</b><span class="muted">'+e(jtWhen(x)+' · '+x.company)+'</span></span><span class="shpill '+c+'">'+s+'</span></button>'};
  return (full?'<div class="card"><h2 style="margin:0">'+e(((jtB&&jtB.name)||'')+' 님')+'</h2><div class="muted">CS팀 · 합동점검</div></div>':'')
   +'<div class="card"><h2 style="margin:0 0 4px">내 합동점검</h2>'+(up.length?up.map(row).join(''):'<p class="muted" style="margin:8px 0 0">예정된 합동점검이 없습니다.</p>')
@@ -73,12 +101,12 @@ function jtFormHtml(){const E=jtEdit,B=jtB,e=escapeText,cs=B.csList.filter(c=>c.
  return '<div class="card"><button class="button ghost" type="button" onclick="jtEdit=null;renderJobs()">← 합동점검</button><h2 style="margin:12px 0 0">'+(E.id?'배정 고치기':'매장 배정')+'</h2>'
   +(E.id?'<div class="shli" style="cursor:default">'+shIc('store')+'<span class="t"><b>'+e(E.storeName)+'</b><span class="muted">'+e(E.store)+'</span></span></div>'
    :'<div id="jtStoreBox">'+jtStorePick()+'</div>')
-  +'<label class="muted" for="jtDate" style="display:block;margin-top:10px">날짜 · 시간</label><div class="row" style="gap:8px"><input id="jtDate" class="shinp" type="date" min="'+e(t)+'" value="'+e(E.date)+'" onchange="jtEdit.date=this.value" style="flex:2"><input id="jtTime" class="shinp" type="time" value="'+e(E.time)+'" onchange="jtEdit.time=this.value" style="flex:1" aria-label="시간"></div>'
+  +'<label class="muted" for="jtDate" style="display:block;margin-top:10px">날짜 · 시간</label><div class="row" style="gap:8px"><input id="jtDate" class="shinp" type="date" min="'+e(t)+'" max="'+e(jtQEnd(B.nextQ||jtQAdd(jtQOf(t),1)))+'" value="'+e(E.date)+'" onchange="jtEdit.date=this.value" style="flex:2"><input id="jtTime" class="shinp" type="time" value="'+e(E.time)+'" onchange="jtEdit.time=this.value" style="flex:1" aria-label="시간"></div>'
   +'<label class="muted" for="jtCs" style="display:block;margin-top:10px">CS팀 담당자</label><select id="jtCs" class="shinp" onchange="jtEdit.csEmail=this.value"><option value="">고르기</option>'+cs.map(c=>'<option value="'+e(c.email)+'"'+(c.email===E.csEmail?' selected':'')+'>'+e(c.name)+'</option>').join('')+'</select>'
   +(cs.length?'':'<p class="muted" style="margin:4px 0 0">먼저 CS팀 담당자를 초대해 주세요.</p>')
   +'<label class="muted" for="jtCo" style="display:block;margin-top:10px">입고도우미 업체</label><select id="jtCo" class="shinp" onchange="jtEdit.companyId=this.value"><option value="">고르기</option>'+B.vendors.map(v=>'<option value="'+e(v.id)+'"'+(v.id===E.companyId?' selected':'')+'>'+e(v.n)+'</option>').join('')+'</select>'
   +'<button class="button" type="button" style="width:100%;margin-top:14px" onclick="jtSave()">저장 · 안내 메일 발송</button>'
-  +'<p class="muted" style="margin:8px 0 0">안내 메일 = 업체 계약담당자 (저장 때 · 전날 09시 한 번 더)</p></div>'}
+  +'<p class="muted" style="margin:8px 0 0">안내 메일 = 업체 계약담당자 (저장 때 · 전날 09시 한 번 더) · 날짜는 다음 분기까지</p></div>'}
 function jtStorePick(){const E=jtEdit,e=escapeText;if(E.store)return '<div class="shli" style="cursor:default">'+shIc('store')+'<span class="t"><b>'+e(E.storeName)+'</b><span class="muted">'+e(E.store)+'</span></span><button type="button" class="linkbtn" onclick="jtEdit.store=\'\';$(\'jtStoreBox\').innerHTML=jtStorePick()">바꾸기</button></div>';
  return '<div class="shsrch"><svg viewBox="0 0 24 24">'+SH_ICONS.search+'</svg><input id="jtQs" class="shinp" type="search" placeholder="매장명 · 코드" value="'+e(E.q)+'" oninput="jtEdit.q=this.value;$(\'jtSRes\').innerHTML=jtStoreRes()" aria-label="매장 찾기" autocomplete="off"></div><div id="jtSRes">'+jtStoreRes()+'</div>'}
 function jtStoreRes(){const q=String(jtEdit.q||'').replace(/\s/g,'').toLowerCase();if(!q)return '<p class="muted" style="margin:6px 0 0">매장 '+jtB.stores.length+'곳 · 이름이나 코드를 적어 주세요.</p>';
@@ -95,15 +123,19 @@ function jtBack(){clearInterval(jtPoll);jtSel='';jtCur=null;if(jtB&&!jtB.err)jtL
 const jtAll=()=>{const F=jtCur&&jtCur.form;return F?F.common.concat(F.contract,F.risks):[]};
 const jtR=()=>jtRes[jtSel]||(jtRes[jtSel]={});
 function jtHead(){const x=jtCur,e=escapeText,[s,c]=jtSt(x,x.today);
- return '<div class="card"><button class="button ghost" type="button" onclick="jtBack()">← 합동점검</button><div class="vh-top" style="align-items:center;margin-top:12px"><h2 style="margin:0">'+e(x.storeName)+'</h2><span class="shpill '+c+'">'+s+'</span></div>'
+ const miss=jtMissed(x,x.today),bk=jtB&&!jtB.cs&&jtB.quarter?'← '+jtQName(jtB.quarter):'← 합동점검';
+ return '<div class="card"><button class="button ghost" type="button" onclick="jtBack()">'+e(bk)+'</button><div class="vh-top" style="align-items:center;margin-top:12px"><h2 style="margin:0">'+e(x.storeName)+'</h2><span class="shpill '+c+'">'+s+'</span></div>'
   +'<div class="muted">'+e(jtQName(x.quarter)+' · '+jtWhen(x))+'</div>'
   +'<div class="shli" style="cursor:default">'+shIc('cal')+'<span class="t"><b>CS팀 '+e(x.csName)+'</b><span class="muted">'+e(x.company)+' · 참여자 '+e(x.person||'미정')+'</span></span></div>'
   +(x.status==='PLAN'?'<div class="muted">안내 메일 '+(x.mailAt?e(fmtTime(x.mailAt)):'안 보냄')+(x.remindAt?' · 전날 알림 '+e(fmtTime(x.remindAt)):'')+'</div>':'')
-  +'<button class="button ghost" type="button" style="width:100%;margin-top:10px" onclick="jtNotice()">안내문 보기 · 인쇄</button>'
-  +(x.status==='PLAN'&&jtB&&jtB.canEdit?'<div class="row" style="margin-top:8px"><button class="button ghost" type="button" style="flex:1" onclick="jtEditOpen()">고치기</button><button class="button ghost" type="button" style="flex:1" onclick="jtMailAgain()">메일 다시</button><button class="button ghost" type="button" style="flex:1" onclick="jtDel()">지우기</button></div>':'')+'</div>'}
+  /* S8-25 미실시 = 시작 · 고치기 · 메일 없음 · 안전보건팀 · 도급인 담당자는 기록 지우기 */
+  +(miss?'<div class="muted" style="margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px;background:var(--bg)">'+e(jtQName(x.quarter))+'가 끝나서 점검을 시작할 수 없습니다. 기록으로만 남습니다.</div>'
+    +(x.canDelMiss?'<button class="button ghost" type="button" style="width:100%;margin-top:8px" onclick="jtDel()">기록 지우기</button><p class="muted" style="margin:6px 0 0">업체에 메일이 가지 않습니다 · 반기 평가 점수는 그대로 (완료한 합동점검만 셈)</p>':'')
+   :'<button class="button ghost" type="button" style="width:100%;margin-top:10px" onclick="jtNotice()">안내문 보기 · 인쇄</button>'
+  +(x.status==='PLAN'&&jtB&&jtB.canEdit?'<div class="row" style="margin-top:8px"><button class="button ghost" type="button" style="flex:1" onclick="jtEditOpen()">고치기</button><button class="button ghost" type="button" style="flex:1" onclick="jtMailAgain()">메일 다시</button><button class="button ghost" type="button" style="flex:1" onclick="jtDel()">지우기</button></div>':''))+'</div>'}
 function jtVisitHtml(){const x=jtCur;if(!x)return '';let h=jtHead();
  if(x.status==='DONE')return h+jtResultHtml();
- if(!x.host)return h;
+ if(!x.host||jtMissed(x,x.today))return h;  // S8-25 미실시 = 현장 단계 없음
  if(x.status==='PLAN')return h+'<div class="card"><h2 style="margin:0">현장</h2><p class="muted" style="margin:6px 0 10px">매장에 도착하면 시작하세요. 시작하면 참석 QR이 열립니다.</p><button class="button" type="button" style="width:100%" onclick="jtStart()">점검 시작</button></div>';
  const S=['참석','점검표','완료'],miss=jtMiss();
  h+='<div class="shstep" role="tablist">'+S.map((t,k)=>'<button type="button" role="tab" aria-selected="'+(k===jtStep)+'" class="'+(k===jtStep?'on':'')+(k===1&&!miss.length?' done':'')+'" onclick="jtGo('+k+')">'+t+'</button>').join('')+'</div>';
@@ -161,7 +193,9 @@ function jtResultHtml(){const x=jtCur,G=x.groups||[],bad=G.filter(g=>g.st==='P')
  setTimeout(()=>bad.forEach((g,i)=>{if(g.ph)jtPicLoad('jtp'+i,g.ph)}),0);return h}
 async function jtPicLoad(img,fid){const put=u=>{const el=$(img);if(el)el.src=u};if(jtPicMem[fid]){put(jtPicMem[fid]);return}try{const r=await callQuiet('jtPic',jtSel,fid);jtPicMem[fid]='data:'+r.mime+';base64,'+r.data;put(jtPicMem[fid])}catch(e){const el=$(img);if(el)el.alt='사진을 불러오지 못했습니다'}}
 async function jtMailAgain(){if(!await askOk('안내 메일',jtCur.company+' 계약담당자에게 안내 메일을 다시 보낼까요?','보내기'))return;try{jtB=await call('jtMail',jtSel);jtCur=await call('jtGet',jtSel);renderJobs();msg('보냈습니다.')}catch(e){}}
-async function jtDel(){if(!await askOk('배정 지우기',jtCur.storeName+' 합동점검 배정을 지울까요?'+(jtCur.mailAt?'\n업체에 취소 메일이 갑니다.':''),'지우기'))return;try{jtB=await call('jtDel',jtSel);jtSel='';jtCur=null;renderJobs();msg('지웠습니다.')}catch(e){}}
+async function jtDel(){if(jtMissed(jtCur,jtCur.today)){if(!await askOk('기록 지우기',jtCur.storeName+' · '+jtQName(jtCur.quarter)+' 미실시 배정을 지울까요?\n업체에 메일은 가지 않습니다.','지우기'))return;
+  try{jtB=await call('jtDel',jtSel);jtQ=jtB.quarter||jtQ;jtSel='';jtCur=null;renderJobs();msg('지웠습니다.')}catch(e){}return}
+ if(!await askOk('배정 지우기',jtCur.storeName+' 합동점검 배정을 지울까요?'+(jtCur.mailAt?'\n업체에 취소 메일이 갑니다.':''),'지우기'))return;try{jtB=await call('jtDel',jtSel);jtSel='';jtCur=null;renderJobs();msg('지웠습니다.')}catch(e){}}
 /** 안내문 A4 (업체에 주거나 매장에 붙임) */
 function jtNotice(){const x=jtCur;if(!x)return;const e=escapeText;$('jtDocDlg')?.remove();
  const el=document.createElement('div');el.id='jtDocDlg';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.style.cssText='position:fixed;inset:0;background:#0009;z-index:9000;overflow:auto;padding:14px';el.onclick=ev=>{if(ev.target===el)el.remove()};
@@ -179,7 +213,7 @@ function jtNotice(){const x=jtCur;if(!x)return;const e=escapeText;$('jtDocDlg')?
 
 /* ---------- 업체 대시보드 카드 (일정 · 참여자 지정) ---------- */
 async function jtVLoad(){try{jtV=await callQuiet('jtVList')}catch(e){return}const b=$('jtBox');if(b)b.innerHTML=jtVCardHtml()}
-function jtVCardHtml(){if(!jtV||!jtV.list.length)return '';jtCss();const t=jtV.today,e=escapeText,up=jtV.list.filter(x=>x.status!=='DONE').reverse(),done=jtV.list.filter(x=>x.status==='DONE'),need=up.filter(x=>!x.person).length;
+function jtVCardHtml(){if(!jtV||!jtV.list.length)return '';jtCss();const t=jtV.today,e=escapeText,up=jtV.list.filter(x=>x.status!=='DONE'&&!jtMissed(x,t)).reverse(),done=jtV.list.filter(x=>x.status==='DONE'),need=up.filter(x=>!x.person).length;
  return '<div class="card"><div class="vh-top" style="align-items:center"><h2 style="margin:0">합동점검</h2>'+(need?'<span class="shpill no">지정 '+need+'</span>':'')+'</div>'
   +up.map(x=>{const [s,c]=jtSt(x,t);return '<div class="shli" style="cursor:default">'+shIc('store',c==='no')+'<span class="t"><b>'+e(x.storeName)+'</b><span class="muted">'+e(jtWhen(x)+' · CS팀 '+x.csName)+'</span></span><span class="shpill '+c+'">'+s+'</span></div>'
    +'<div class="row" style="gap:6px;margin:0 0 6px"><input id="jtp_'+e(x.id)+'" class="shinp" style="flex:1;margin:0" placeholder="참여자 이름 (작업 관리자 · 반장)" value="'+e(x.person||'')+'" aria-label="참여자 이름"><button class="button" type="button" onclick="jtVSet(\''+e(x.id)+'\')">'+(x.person?'변경':'지정')+'</button></div>'}).join('')
