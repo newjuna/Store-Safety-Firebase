@@ -83,7 +83,9 @@ function shPickDraw(){const n=shPick.size,e=escapeText,D=shAll?[...new Set(shAll
   +(shAll?'<label class="muted" for="shPD" style="display:block;margin-top:10px">부서</label><select id="shPD" class="shinp" style="margin-top:4px" onchange="shPD=this.value;shPT=\'\';shPickRes()"><option value="">부서 고르기</option>'+D.map(d=>'<option value="'+e(d)+'"'+(d===shPD?' selected':'')+'>'+e(d)+'</option>').join('')+'</select>':'')
   +'<div id="shRes">'+shPickResHtml()+'</div></div>'
   +'<div class="card"><h2 style="margin:0">고른 매장 <span id="shSelN">'+n+'</span></h2><div class="shchips" id="shSel">'+shSelHtml()+'</div><div class="muted" style="margin-top:6px">다른 팀 매장도 팀을 바꿔서 더 고를 수 있습니다. (20곳까지)</div>'
-  +'<button class="button" type="button" style="width:100%;margin-top:12px" id="shStart" onclick="shPickSave()"'+(n?'':' disabled')+'>저장'+(n?' ('+n+'곳)':'')+'</button></div>'}
+  +'<button class="button" type="button" style="width:100%;margin-top:12px" id="shStart" onclick="shPickSave()"'+(n?'':' disabled')+'>저장'+(n?' ('+n+'곳)':'')+'</button></div>'
+  /* S8-27 오른쪽 아래에 따라오는 저장 버튼 (매장이 많아 길게 내려가도 바로 저장) · 고른 매장이 있을 때만 */
+  +'<button type="button" id="shFab" onclick="shPickSave()" style="position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:40;border:0;border-radius:999px;background:var(--main,#111827);color:#fff;font:inherit;font-weight:700;padding:13px 20px;box-shadow:0 8px 24px #0000003a;cursor:pointer'+(n?'':';display:none')+'">'+'저장 ('+n+'곳)</button>'}
 const shSelHtml=()=>[...shPick.values()].map(s=>'<button type="button" class="shchip" onclick="shPickT(\''+escapeText(s.c)+'\')" aria-label="'+escapeText(s.n)+' 빼기">'+escapeText(s.n)+' ✕</button>').join('');
 /** 팀 고르기 + 검색 칸 + 매장 목록 (부서를 바꾸면 다시 그림) */
 function shPickResHtml(){if(!shAll)return '<p class="muted" style="margin:10px 0 0">매장 목록을 불러오는 중…</p>';const e=escapeText;
@@ -101,7 +103,8 @@ function shPickRes(){const el=$('shRes');if(el)el.innerHTML=shPickResHtml()}
 function shPickList(){const el=$('shList');if(el)el.innerHTML=shPickListHtml()}
 const shRow2S=r=>({c:r[0],n:r[1],t:r[2],k:r[3],d:r[4]||''});
 function shPickT(c){if(shPick.has(c))shPick.delete(c);else{if(shPick.size>=20){msg('20곳까지 고를 수 있습니다.');shPickList();return}const r=(shAll||[]).find(x=>x[0]===c);if(r)shPick.set(c,shRow2S(r))}
- $('shSel').innerHTML=shSelHtml();shPickList();const b=$('shStart'),n=shPick.size;b.disabled=!n;b.textContent='저장'+(n?' ('+n+'곳)':'');$('shSelN').textContent=n}
+ $('shSel').innerHTML=shSelHtml();shPickList();const b=$('shStart'),n=shPick.size;b.disabled=!n;b.textContent='저장'+(n?' ('+n+'곳)':'');$('shSelN').textContent=n;
+ const f=$('shFab');if(f){f.style.display=n?'':'none';f.textContent='저장 ('+n+'곳)'}}  // S8-27 따라오는 저장 버튼
 async function shPickSave(){const L=[...shPick.values()].map(s=>{const r=(shAll||[]).find(x=>x[0]===s.c);return r?shRow2S(r):s});if(!L.length)return;shLS.set(SH_KEY,L);shLS.del(SH_HOME);shCall('scPick',{codes:L.map(s=>s.c)},true).catch(()=>{});shGo('home')}
 
 /* ---------- 홈 ---------- */
