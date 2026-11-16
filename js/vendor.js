@@ -18,7 +18,11 @@ function vgo(m){if(typeof setTopGuide==='function')setTopGuide('');if(!VMENU[m])
 /** 승인 후 화면 시작 (renderMy에서 호출) */
 function vStart(){markVMenu();if(vmenu==='docs')return renderVDocs();renderDash()}
 /* ---------- 대시보드 ---------- */
-function renderDash(){const el=$('execArea');if(!el)return;if(typeof caCur!=='undefined')caCur='';if(typeof acReset==='function')acReset();if(typeof heVCur!=='undefined')heVCur='';
+/** S8-26 대시보드 카드 = 이 기기에 저장해 둔 것 먼저 (아래 *VLoad가 뒤에서 최신으로 바꿈) */
+function vdPrefill(){if(typeof cacheGet!=='function')return;const g=n=>cacheGet(n,[]);
+ if(typeof heV!=='undefined'&&!heV)heV=g('heMine');if(typeof acM!=='undefined'&&!acM)acM=g('acMine');if(typeof cmV!=='undefined'&&!cmV)cmV=g('cmVList');
+ if(typeof jtV!=='undefined'&&!jtV)jtV=g('jtVList');if(typeof caV!=='undefined'&&!caV)caV=g('vcList');if(typeof wrM!=='undefined'&&!wrM)wrM=g('wrMine')}
+function renderDash(){const el=$('execArea');if(!el)return;if(typeof caCur!=='undefined')caCur='';if(typeof acReset==='function')acReset();if(typeof heVCur!=='undefined')heVCur='';vdPrefill();
  const cb=state.company||{},cv=cb.valid,rn=cb.renewAt?{DRAFT:'작성 중',CORRECTION:'보완 요청',SUBMITTED:'본사 검토 중',SAFETY_REVIEW:'본사 검토 중'}[cb.submissionStatus]||'진행 중':'';
  el.innerHTML='<div class="card"><h2 style="margin:0">'+escapeText(cb.company||'')+'</h2><div class="muted">'+escapeText(cb.industry||'')+'</div>'
   +'<button class="linkbtn" type="button" style="font-size:13px;margin:4px 0 0" onclick="openEvalResult(\'CE\')">계약 전 평가 결과 보기</button>'

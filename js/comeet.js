@@ -18,8 +18,11 @@ const cmNextP=P=>{const y=+P.slice(0,4),m=+P.slice(5,7);return m===12?(y+1)+'-01
 function cmRangeOf(date,prev){if(!date)return null;return {from:prev&&prev<date?cmAddDay(prev,1):cmAddDay(date,-30),to:cmAddDay(date,-1),first:!(prev&&prev<date)}}
 
 /* ---------- 본사: 회의 카드 (P = 달) ---------- */
-function cmCardHtml(P){jtCss();if(!cmCur||cmCur.id!==P){cmEdit=null;cmLoad(P);return '<div id="cmBox">'+cmCard('협의체 회의','','<p class="muted" style="margin:8px 0 0">불러오는 중…</p>')+'</div>'}return '<div id="cmBox">'+cmInner()+'</div>'}
-async function cmLoad(P,quiet){if(cmBusy)return;cmBusy=true;try{cmCur=await callQuiet('cmGet',P)}catch(e){if(!quiet)cmCur={id:P,err:(e&&e.message)||'불러오지 못했습니다.'}}finally{cmBusy=false}cmRedraw()}
+function cmCardHtml(P){jtCss();
+ if(!cmCur||cmCur.id!==P){const c=typeof cacheGet==='function'?cacheGet('cmGet',[P]):null;if(c&&c.id===P&&!c.err){cmEdit=null;cmCur=c;setTimeout(()=>cmLoad(P,true),0);return '<div id="cmBox">'+cmInner()+'</div>'}}  // S8-26 저장해 둔 것 먼저
+ if(cmCur&&cmCur.id===P)setTimeout(cmPollSet,0);  // S8-26 회의 카드가 coList와 같이 와도 출석 받는 중이면 30초마다 새로 고침
+ if(!cmCur||cmCur.id!==P){cmEdit=null;cmLoad(P);return '<div id="cmBox">'+cmCard('협의체 회의','','<p class="muted" style="margin:8px 0 0">불러오는 중…</p>')+'</div>'}return '<div id="cmBox">'+cmInner()+'</div>'}
+async function cmLoad(P,quiet){if(cmBusy)return;cmBusy=true;try{const r=await callQuiet('cmGet',P);if(!cmEdit)cmCur=r}catch(e){if(!quiet)cmCur={id:P,err:(e&&e.message)||'불러오지 못했습니다.'}}finally{cmBusy=false}cmRedraw()}
 function cmRedraw(){const b=$('cmBox');if(b&&cmCur)b.innerHTML=cmInner();cmPollSet()}
 /** 출석 받는 중 = 30초마다 조용히 새로 고침 (화면에 있을 때만) */
 function cmPollSet(){clearInterval(cmPoll);if(!cmCur||cmCur.status!=='PLAN'||cmEdit)return;const P=cmCur.id;cmPoll=setInterval(()=>{if(!$('cmBox')||!cmCur||cmCur.id!==P||cmCur.status!=='PLAN'||cmEdit){clearInterval(cmPoll);return}cmLoad(P,true)},30000)}

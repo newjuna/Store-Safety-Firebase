@@ -15,8 +15,11 @@ function heSheetHtml(d){const e=escapeText;
   +'<tr><td><b>합계</b></td><td class="muted">'+(d.base+d.bonus>100?'기본 '+d.base+' + 가점 '+d.bonus+' → 최대 100':'기본 '+d.base+' + 가점 '+(d.bonus||0))+'</td><td class="n"><b>'+d.total+'</b></td></tr></table>'}
 
 /* ---------- 본사 ☰ 반기 평가 ---------- */
-async function heLoad(){try{heB=await call('heBoard',heP);heP=heB.period}catch(e){heB={err:(e&&e.message)||'불러오지 못했습니다.'}}if(tab==='jobs'&&smenu==='half')renderJobs()}
-function sHe(){if(typeof jtCss==='function')jtCss();if(!heB){heLoad();return '<div class="card"><h2>반기 평가</h2><p class="muted">불러오는 중입니다…</p></div>'}
+/** S8-26 bg = 저장해 둔 화면을 보여 주는 중 뒤에서 받기 (같으면 그대로 · 실패하면 저장본 그대로 · 업체 한 곳을 보고 있으면 다시 그리지 않음) */
+async function heLoad(bg){const P0=heP;try{const r=await (bg?callBg:call)('heBoard',P0);if(bg&&(heP!==P0||!heB||!heB._c))return;if(bg&&swrSame(heB,r)){delete heB._c;return}heB=r;heP=heB.period}catch(e){if(bg)return;heB={err:(e&&e.message)||'불러오지 못했습니다.'}}if(tab==='jobs'&&smenu==='half'&&!(bg&&heSel))renderJobs()}
+function sHe(){if(typeof jtCss==='function')jtCss();
+ if(!heB){const c=typeof cacheGet==='function'?cacheGet('heBoard',[heP]):null;if(c&&Array.isArray(c.list)&&!c.err){heB=c;heB._c=1;setTimeout(()=>heLoad(true),0)}}  // S8-26 저장해 둔 것 먼저
+ if(!heB){heLoad();return '<div class="card"><h2>반기 평가</h2><p class="muted">불러오는 중입니다…</p></div>'}
  if(heB.err){const m=heB.err;heB=null;return '<div class="card"><h2>반기 평가</h2><p class="muted">'+escapeText(m)+'</p><button class="button" type="button" onclick="renderJobs()">다시 시도</button></div>'}
  if(heSel&&heCur){jobsMode='form';return heDetailHtml()}
  const B=heB,e=escapeText,L=B.list,c=k=>L.filter(x=>k.includes(x.grade)).length;

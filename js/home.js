@@ -19,13 +19,14 @@ function smIcons(){document.querySelectorAll('#navTabs .smb[data-ic]').forEach(b
 
 /* ---------- 오늘 할 일 ---------- */
 let dsD=null,dsErr='',dsBusy=false,dsChk=null,dsTried=false;
-async function dashLoad(quiet){if(dsBusy)return;dsBusy=true;try{const [d,c]=await Promise.all([callQuiet('dashSum'),callQuiet('checkBoard').catch(()=>null)]);d._at=Date.now();dsD=d;if(c)dsChk=c}catch(e){if(!quiet)dsErr=(e&&e.message)||'불러오지 못했습니다.'}dsBusy=false;
+async function dashLoad(quiet){if(dsBusy)return;dsBusy=true;try{const [d,c]=await Promise.all([quiet?callBg('dashSum'):callQuiet('dashSum'),callQuiet('checkBoard').catch(()=>null)]);const same=quiet&&dsD&&swrSame(dsD,d)&&(!c||swrSame(dsChk||{},c));d._at=Date.now();dsD=d;if(c)dsChk=c;if(same){dsBusy=false;return}}catch(e){if(!quiet)dsErr=(e&&e.message)||'불러오지 못했습니다.'}dsBusy=false;
  if(typeof sBadges==='function')sBadges(state.badges);if(tab==='jobs'&&smenu==='dash')renderJobs()}
 /** ☰ 빨간 숫자 = 처리할 것 합계 */
 function dashTodoN(){const B=(state&&state.badges)||{},D=dsD;if(!D&&!dsTried&&!dsBusy&&isStaffUI()&&!isCsUI()){dsTried=true;setTimeout(()=>dashLoad(true),0)}/* 다른 화면에서 시작해도 ☰ 숫자가 맞게 (한 번만) */return (B.admin||0)+(B.review||0)+(D?D.acc.late+D.ca.open+D.plan.wait+(D.meets||[]).filter(m=>m.late).length:0)}
 function dsRow(go,ic,red,t,sub,n){const e=escapeText;return '<button class="dsrow" type="button" onclick="'+go+'">'+shIc(ic,red)+'<span class="t"><b>'+e(t)+'</b>'+(sub?'<span>'+e(sub)+'</span>':'')+'</span>'+(n!==''&&n!=null?'<span class="dsn'+(red?' r':'')+'">'+n+'</span>':'')+shIc('right')+'</button>'}
 function sDash(){smIcons();if(typeof chkCss==='function')chkCss();const e=escapeText,me=state.staff||{};
  if(dsErr){const m=dsErr;dsErr='';return '<div class="card"><h2>오늘 할 일</h2><p class="muted">'+e(m)+'</p><button class="button" type="button" onclick="dashLoad()">다시 시도</button></div>'}
+ if(!dsD){const c=typeof cacheGet==='function'?cacheGet('dashSum',[]):null;if(c&&c.acc&&c.ca&&c.plan&&c.meets&&c.joints){dsD=c;dsD._at=0}}  // S8-26 저장해 둔 것 먼저 (_at=0 → 아래에서 바로 최신으로 받음)
  if(!dsD){dashLoad();return '<div class="card"><h2 style="margin:0">'+e(me.name||'')+' 님</h2><p class="muted" style="margin:6px 0 0">오늘 할 일을 불러오는 중입니다…</p></div>'}
  if(!dsBusy&&Date.now()-(dsD._at||0)>60000){dsD._at=Date.now();setTimeout(()=>dashLoad(true),0)}
  const B=state.badges||{},D=dsD,t=D.today,wd=d=>typeof jtD==='function'?jtD(d):d;

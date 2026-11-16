@@ -51,12 +51,16 @@ function coMeetHtml(b,who,back,extra){const e=escapeText,old=!b.meet,M=b.meet||{
  *  아래 = 「지난 협의체 (결과 · PDF)」 = 종료한 회의 · 예전 25일 결과 파일만 · 누르면 결과 PDF와 같은 순서로 보임
  *  25일 자동 생성 · 1일 공문 메일은 없앰 (회의를 열면 개최 공문 메일 · 종료 = 결과) */
 let coTopP='';  // 맨 위 카드에 띄울 달 (결과를 못 만든 끝난 회의 · 「오늘 할 일」에서 고름)
-async function coLoad(){try{coL=await call('coList')}catch(e){coL={list:[],today:'',err:(e&&e.message)||'불러오지 못했습니다.'}}if(tab==='jobs'&&smenu==='co')renderJobs()}
+/** S8-26 bg = 저장해 둔 목록을 보여 주는 중 뒤에서 받기 (실패하면 저장본 그대로) · 응답 top = 맨 위 회의 카드 (따로 cmGet을 다시 부르지 않음) */
+async function coLoad(bg){try{const r=await (bg?callBg:call)('coList');if(bg&&(!coL||!coL._c))return;if(bg&&swrSame(coL,r)){delete coL._c;return}coL=r;coTopSet(r.top)}catch(e){if(!bg||!coL)coL={list:[],today:'',err:(e&&e.message)||'불러오지 못했습니다.'}}if(tab==='jobs'&&smenu==='co')renderJobs()}
+/** S8-26 coList에 같이 온 맨 위 회의 카드 → comeet.js cmCur (고치는 중 · 다른 달을 보고 있으면 그대로) */
+function coTopSet(t){if(!t||!t.id||typeof cmCur==='undefined'||cmEdit||!coL||coTopPick()!==t.id)return;cmCur=t}
 /** 맨 위 카드 달: 고른 달 → 종료 안 한 회의 (가장 이른 달) → 회의가 없는 달 (= [협의체 회의 열기] · 서버는 고른 날짜로 달을 정함) */
 function coTopPick(){const M=coL.meets||{};if(coTopP)return coTopP;const open=Object.keys(M).filter(k=>M[k].status!=='DONE').sort();if(open.length)return open[0];
  let P=coL.today.slice(0,7);for(let i=0;i<24&&M[P];i++)P=cmNextP(P);return P}
 function coRefreshTop(id){coTopP=id||'';if(tab==='jobs'&&smenu==='co'&&!coSel)renderJobs()}
-function sCo(){if(!coL){coLoad();return '<div class="card"><h2>협의체</h2><p class="muted">불러오는 중입니다…</p></div>'}if(coL.err){const m=coL.err;coL=null;return '<div class="card"><h2>협의체</h2><p class="muted">'+escapeText(m)+'</p><button class="button" type="button" onclick="renderJobs()">다시 시도</button></div>'}const e=escapeText;
+function sCo(){if(!coL){const c=typeof cacheGet==='function'?cacheGet('coList',[]):null;if(c&&Array.isArray(c.list)&&!c.err){coL=c;coL._c=1;coTopSet(c.top);setTimeout(()=>coLoad(true),0)}}  // S8-26 저장해 둔 것 먼저
+ if(!coL){coLoad();return '<div class="card"><h2>협의체</h2><p class="muted">불러오는 중입니다…</p></div>'}if(coL.err){const m=coL.err;coL=null;return '<div class="card"><h2>협의체</h2><p class="muted">'+escapeText(m)+'</p><button class="button" type="button" onclick="renderJobs()">다시 시도</button></div>'}const e=escapeText;
  if(coSel&&coCur&&coCur.id===coSel){const md=(coL.meets||{})[coSel],ed=isSafetyUI(),mk=md&&md.status==='DONE'&&ed?'<button class="button" type="button" style="width:100%;margin-top:10px" onclick="coMeetMake(\''+e(coSel)+'\')">회의 결과 만들기 (개최 공문 · 안건 · 참석 현황)</button>':'';
   if(coCur.meet)return coMeetHtml(coCur,'S','coBack()');
   /* S8-24 결과가 없는 끝난 회의 (예전 방식으로 끝남 · 결과 만들기 실패) */

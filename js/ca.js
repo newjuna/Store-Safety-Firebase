@@ -56,8 +56,11 @@ async function caFixSave(){const miss=[];if(!caFix.memo.trim())miss.push('caFixM
  catch(e){if(/이미 조치/.test((e&&e.message)||'')){caCur='';caVLoad().then(()=>renderDash())}}}
 
 /* ---------- 본사 (☰ 시정요구서) ---------- */
-async function caSLoad(){try{caS=await call('vcAll')}catch(e){caS={list:[],today:'',err:(e&&e.message)||'불러오지 못했습니다.'}}if(tab==='jobs'&&smenu==='ca')renderJobs()}
-function sCa(){caCss();if(!caS){caSLoad();return '<div class="card"><h2>시정요구서</h2><p class="muted">불러오는 중입니다…</p></div>'}if(caS.err){const m=caS.err;caS=null;return '<div class="card"><h2>시정요구서</h2><p class="muted">'+escapeText(m)+'</p><button class="button" type="button" onclick="renderJobs()">다시 시도</button></div>'}const t=caS.today;
+/** S8-26 bg = 저장해 둔 목록을 보여 주는 중 뒤에서 받기 (같으면 그대로 · 실패하면 저장본 그대로 · 한 건을 보고 있으면 다시 그리지 않음) */
+async function caSLoad(bg){try{const r=await (bg?callBg:call)('vcAll');if(bg&&(!caS||!caS._c))return;if(bg&&swrSame(caS,r)){delete caS._c;return}caS=r}catch(e){if(bg)return;caS={list:[],today:'',err:(e&&e.message)||'불러오지 못했습니다.'}}if(tab==='jobs'&&smenu==='ca'&&!(bg&&caCur))renderJobs()}
+function sCa(){caCss();
+ if(!caS){const c=typeof cacheGet==='function'?cacheGet('vcAll',[]):null;if(c&&Array.isArray(c.list)&&!c.err){caS=c;caS._c=1;setTimeout(()=>caSLoad(true),0)}}  // S8-26 저장해 둔 것 먼저
+ if(!caS){caSLoad();return '<div class="card"><h2>시정요구서</h2><p class="muted">불러오는 중입니다…</p></div>'}if(caS.err){const m=caS.err;caS=null;return '<div class="card"><h2>시정요구서</h2><p class="muted">'+escapeText(m)+'</p><button class="button" type="button" onclick="renderJobs()">다시 시도</button></div>'}const t=caS.today;
  if(caCur){const x=caS.list.find(i=>i.id===caCur);if(x){jobsMode='form';return caDetailHtml(x,'S',t,'caSBack()')}caCur=''}
  const L=caS.list,F=[['open','미조치',x=>x.status!=='DONE'],['late','기한 지남',x=>caLate(x,t)],['done','완료',x=>x.status==='DONE'],['all','전체',()=>true]],f=(F.find(x=>x[0]===caF)||F[0])[2],q=String(caQ||'').replace(/\s/g,'');
  const M=L.filter(f).filter(x=>!q||String(x.company+x.storeName).replace(/\s/g,'').includes(q));

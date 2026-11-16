@@ -35,8 +35,11 @@ function jtRedraw(){const y=window.scrollY;renderJobs();window.scrollTo(0,y)}
 const jtCard=(t,body)=>'<div class="card"><h2>'+t+'</h2>'+body+'</div>';
 
 /* ---------- 본사 · CS팀 ☰ 합동점검 ---------- */
-async function jtLoad(q){try{jtB=await call('jtBoard',q===undefined?jtQ:q);if(jtB.quarter)jtQ=jtB.quarter}catch(e){jtB={err:(e&&e.message)||'불러오지 못했습니다.'}}if(tab==='jobs'&&smenu==='joint')renderJobs()}
-function sJt(){jtCss();if(!jtB){jtLoad();return jtCard('합동점검','<p class="muted">불러오는 중입니다…</p>')}
+/** S8-26 bg = 저장해 둔 화면을 보여 주는 중 뒤에서 받기 (실패하면 저장본 그대로 · 고치는 중이면 화면을 다시 그리지 않음) */
+async function jtLoad(q,bg){const Q0=q===undefined?jtQ:q;try{const r=await (bg?callBg:call)('jtBoard',Q0);if(bg&&(jtQ!==Q0||!jtB||!jtB._c))return;if(bg&&swrSame(jtB,r)){delete jtB._c;return}if(bg&&jtB.autoDone)r.autoDone=true;jtB=r;if(jtB.quarter)jtQ=jtB.quarter}catch(e){if(bg)return;jtB={err:(e&&e.message)||'불러오지 못했습니다.'}}if(tab==='jobs'&&smenu==='joint'&&!(bg&&(jtEdit||jtSel)))renderJobs()}
+function sJt(){jtCss();
+ if(!jtB){const c=typeof cacheGet==='function'?cacheGet('jtBoard',[jtQ]):null;if(c&&Array.isArray(c.mine)&&!c.err){jtB=c;jtB._c=1;const Q=jtQ;setTimeout(()=>jtLoad(Q,true),0)}}  // S8-26 저장해 둔 것 먼저
+ if(!jtB){jtLoad();return jtCard('합동점검','<p class="muted">불러오는 중입니다…</p>')}
  if(jtB.err){const m=jtB.err;jtB=null;return jtCard('합동점검','<p class="muted">'+escapeText(m)+'</p><button class="button" type="button" onclick="renderJobs()">다시 시도</button>')}
  if(jtSel){jobsMode='form';return jtVisitHtml()}
  if(jtEdit){jobsMode='form';return jtFormHtml()}
