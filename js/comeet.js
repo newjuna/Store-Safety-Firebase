@@ -34,7 +34,7 @@ function cmInner(){const m=cmCur,e=escapeText,mon=coMon(m.id);
  if(m.err)return cmCard('협의체 회의','','<p class="muted">'+e(m.err)+'</p><button class="button ghost" type="button" onclick="cmCur=null;cmLoad(\''+e(m.id)+'\')">다시 시도</button>');
  if(cmEdit)return cmFormHtml();
  if(m.none)return cmCard('협의체 회의','<span class="shpill">열린 회의 없음</span>','<p class="muted" style="margin:6px 0 0">매월 중순 정기 회의 · 날짜와 시만 고르면 업체에 개최 공문 메일이 갑니다. 고른 날짜의 달이 그 달 협의체가 됩니다.</p>'
-  +(m.canEdit?'<button class="button" type="button" style="width:100%;margin-top:10px" onclick="cmNew()">협의체 회의 열기</button>':'<p class="muted" style="margin:8px 0 0">안전보건팀이 회의를 열면 여기에 보입니다.</p>'));
+  +(m.canEdit?'<button class="button" type="button" style="width:100%;margin-top:10px" onclick="cmNew()">협의체 회의 열기</button>':'<p class="muted" style="margin:8px 0 0">안전보건팀 · 도급인 담당자가 회의를 열면 여기에 보입니다.</p>'));
  const R=m.range||{},head='<div class="shli" style="cursor:default">'+shIc('cal')+'<span class="t"><b>'+e(cmWhen(m))+'</b><span class="muted">'+(m.mailAt?'개최 공문 메일 '+e(fmtTime(m.mailAt))+' · '+(m.mailCount||0)+'곳':'개최 공문 메일 안 보냄')+'</span></span></div>'
   +(R.from?'<div class="muted" style="margin-top:2px">안건 기간 '+e(cmDot(R.from)+' ~ '+cmDot(R.to))+(m.status==='DONE'?'':' (자동)')+'</div>':'');
  const T=cmVTable(m),nIn=T.V.filter(v=>v.in).length,A=m.attendees||[],hq=A.filter(x=>x.side==='HQ');
