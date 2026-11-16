@@ -27,7 +27,28 @@ function coHtml(b,who,back,extra,inMeet){if(typeof chkCss==='function')chkCss();
  if(who==='S'&&(b.lateList||[]).length)h+='<div class="card"><details class="hist"><summary>지난 기간 늦은 제출 '+b.lateList.length+'</summary>'+b.lateList.map(x=>'<div class="muted">'+e(x.storeName+' · '+shW(x.week)+' 주')+'</div>').join('')+'</details></div>';
  return h}
 
-/** S8-24 회의 결과 화면 = 결과 PDF와 같은 순서 (① 개최 공문 ② 안건 ③ 참석 현황) · who S 본사 · P 점장 */
+/* ---------- S8-28 회의록 = 협의 사항 (산업안전보건법 시행규칙 제79조 ②) ----------
+ *  1 · 2 · 3 · 5 = 사람이 적음 (다음 회의로 이어짐 · 처음엔 빈칸 + 회색 예시) · 4 = 미흡 · 문제만 자동 (양호는 안 씀) · 6 = 업체가 등록한 재해 · 기타 · 결정 사항 */
+const CO_AG_T={a1:'작업의 시작 시간',a2:'작업 또는 작업장 간의 연락방법',a3:'재해발생 위험이 있는 경우 대피방법',a4:'작업장 위험성평가의 실시에 관한 사항',a5:'사업주와 수급인 또는 수급인 상호 간의 연락 방법 및 작업공정의 조정',a6:'재해 발생 유무',etc:'기타 · 결정 사항'};
+const CO_AG_EX={a1:'예) 입고 작업은 매장별 입고 일정표에 따라 시작 (평일 07시 · 주말 08시). 바뀌면 전날까지 매장 점장에게 알림.',a2:'예) 매장 점장 ↔ 업체 현장 관리자(반장) 휴대폰 · 매장별 단체 대화방.',a3:'예) 매장 대피 경로도에 따라 가까운 비상구로 대피 · 화재 시 119 신고 후 점장 지시에 따름 · 다친 사람이 있으면 바로 작업 멈춤.',a5:'예) 도급인 담당자 ↔ 업체 계약담당자 (메일 · 전화) · 매장 행사 · 진열 변경으로 입고 시간이 겹치면 전날까지 조정.',etc:'예) 롤테이너 임시 보관 구역 표시 (각 매장 · 12월 말까지) · 업체 건의 사항'};
+const coTopTxt=L=>(L||[]).map(x=>x.name+' '+x.n).join(' · ');
+/** 4 위험성평가 줄 (미흡이 있는 부서 · 시정요구서가 있는 업체 · 불량이 있는 합동점검만) */
+function coI4Lines(mi){const e=escapeText,L=[],I=(mi&&mi.i4)||{},tp=X=>(X||[]).length?' ('+e(coTopTxt(X))+')':'';
+ (I.depts||[]).forEach(d=>L.push('<b>'+e(d.dept)+'</b>'+(d.c?' · 공통 미흡 '+d.c+'건'+tp(d.cTop):'')+(d.d?' · 도급 미흡 '+d.d+'건'+tp(d.dTop):'')+(d.f?' · 월별 집중 위험 '+d.f+'건'+tp(d.fTop):'')));
+ (I.vendors||[]).forEach(v=>L.push('시정요구서 · <b>'+e(v.company)+'</b> '+v.issued+'건 (조치 '+v.done+(v.open?' · <span style="color:var(--accent);font-weight:600">미조치 '+v.open+'</span>':'')+')'));
+ (I.joint||[]).forEach(j=>L.push('합동점검 · '+e(j.store)+' '+e(String(j.date||'').slice(5).replace('-','.'))+' · '+e(j.company)+' · 불량 '+j.bad+(j.req?' (업체 조치 요청 '+j.req+')':'')));return L}
+/** 6 재해 줄 */
+function coI6Lines(mi){const e=escapeText;return ((mi&&mi.i6)||[]).map(x=>e(x.storeName)+' · '+e(String(x.accDate||'').slice(5).replace('-','.'))+' · '+e(x.company)+' · '+e(x.memo)+(x.plan?' · 대책: '+e(x.plan):'')+' · '+(x.status==='DONE'?'조치 완료':'<span style="color:var(--accent)">조치 전</span>'))}
+/** 회의록 표 (읽기 전용) · mi = 서버 minutes */
+function coMinutesHtml(mi){const e=escapeText,t=s=>String(s||'').trim()?e(s).replace(/\n/g,'<br>'):'<span class="muted">기록 없음</span>',L4=coI4Lines(mi),L6=coI6Lines(mi);
+ const row=(n,k,v)=>'<tr><th style="width:36%;font-weight:600">'+(n?n+'. ':'')+e(CO_AG_T[k])+'</th><td>'+v+'</td></tr>';
+ return '<table class="rtable chkt">'+row(1,'a1',t(mi.a1))+row(2,'a2',t(mi.a2))+row(3,'a3',t(mi.a3))
+  +row(4,'a4',L4.length?L4.map(l=>'· '+l).join('<br>'):'<span class="muted">이 기간 미흡 · 시정요구서 · 합동점검 불량 없음</span>')
+  +row(5,'a5',t(mi.a5))+row(6,'a6',L6.length?L6.map(l=>'· '+l).join('<br>'):'재해 없음')+row(0,'etc',t(mi.etc))+'</table>'}
+const coHost=()=>isSafetyUI()||(!!state.staff&&state.staff.role==='CLIENT'&&!isCsUI());
+/** 결과 화면에서 [회의록 고치기] → 맨 위 회의 카드를 그 달로 · 「협의 사항」 탭 */
+async function cmAgOpen(P){try{cmCur=await call('cmGet',P);cmEdit=null;cmTab='ag';coTopP=P;coSel='';coCur=null;renderJobs();window.scrollTo(0,0)}catch(e){}}
+/** S8-24 회의 결과 화면 = 결과 PDF와 같은 순서 (S8-28 ① 개최 공문 ② 회의록 ③ 참석 현황 ④ 붙임 · PDF는 ② 다음에 미흡 사진) · who S 본사 · P 점장 */
 function coMeetHtml(b,who,back,extra){const e=escapeText,old=!b.meet,M=b.meet||{},V=M.vendors||[],nIn=V.filter(v=>v.in).length,HOW={AUTO:'회의 연 사람',APP:'앱',HQ:'도급인 등록',STAFF:'링크',QR:'QR'};
  const sec=(n,t)=>'<h2 style="margin:20px 4px 8px;font-size:16px">'+n+' '+e(t)+'</h2>',co=M.mailCo||[];
  let h='<div class="card">'+(back?'<button class="button ghost" type="button" onclick="'+back+'">← 협의체</button>':'')+'<h2 style="margin:'+(back?'12px':'0')+' 0 0">'+e(coMon(b.id))+' 안전보건협의체 결과</h2>'
@@ -39,12 +60,16 @@ function coMeetHtml(b,who,back,extra){const e=escapeText,old=!b.meet,M=b.meet||{
   +sec('③','참석 현황')+'<div class="card"><p class="muted" style="margin:0">회의 기록이 없습니다. 반기 평가에서는 미개최로 보아 업체 점수에 영향이 없습니다.</p></div>';
  h+=sec('①','개최 공문')+'<div class="card"><table class="rtable chkt"><tr><th style="width:64px">제목</th><td>'+e(coMon(b.id))+' 안전보건협의체 개최</td></tr><tr><th>일시</th><td>'+e(M.when||'')+'</td></tr>'
   +'<tr><th>수신</th><td>입고도우미 수급업체 '+(co.length||M.mailCount||0)+'곳'+(co.length?'<div class="muted">'+e(co.join(' · '))+'</div>':'')+'</td></tr>'
-  +'<tr><th>발송</th><td>'+(M.mailAt?e(fmtTime(M.mailAt))+' · 메일 '+(M.mailCount||0)+'통':'기록 없음')+'</td></tr><tr><th>안건</th><td>'+e(coRng(b))+' 안전보건 현황</td></tr></table>'
+  +'<tr><th>발송</th><td>'+(M.mailAt?e(fmtTime(M.mailAt))+' · 메일 '+(M.mailCount||0)+'통':'기록 없음')+'</td></tr><tr><th>안건</th><td>시행규칙 제79조 ② 협의 사항 1~6 · '+e(coRng(b))+'</td></tr></table>'
   +'<p class="muted" style="margin:6px 0 0">산업안전보건법 제64조 · 시행규칙 제79조</p></div>';
- h+=sec('②','안건 · '+coRng(b)+' (지난 회의 다음 날 ~ 이번 회의 전날)')+coHtml(b,who,'','',true);
+ /* S8-28 ② 회의록 (협의 사항 1~6 + 기타) · 미흡 사진은 결과 PDF 회의록 다음 쪽 */
+ h+=sec('②','회의록 · 협의 사항 (시행규칙 제79조 ②)')+'<div class="card">'+coMinutesHtml(b.minutes||{})
+  +'<p class="muted" style="margin:8px 0 0">4 = 안건 기간('+e(coRng(b))+')에 미흡 · 시정요구서 · 합동점검 불량이 있는 것만 · 미흡 사진은 결과 PDF 회의록 다음 쪽</p>'
+  +(who==='S'&&coHost()?'<button class="button ghost" type="button" style="width:100%;margin-top:10px" onclick="cmAgOpen(\''+e(b.id)+'\')">회의록 고치기 (1 · 2 · 3 · 5 · 기타)</button>':'')+'</div>';
  h+=sec('③','참석 현황')+'<div class="card"><table class="rtable chkt"><tr><th>업체</th><th>출석자</th><th></th></tr>'+(V.length?V.map(v=>'<tr><td><b>'+e(v.company)+'</b></td><td>'+((v.who||[]).length?v.who.map(w=>e(w.n)+(w.how?' <span class="muted" style="font-size:11.5px">· '+e(HOW[w.how]||'')+'</span>':'')).join('<br>'):'—')+'</td><td><span class="shpill '+(v.in?'ok':'no')+'">'+(v.in?'출석':'불참')+'</span></td></tr>').join(''):'<tr><td colspan="3" class="muted">업체 없음</td></tr>')+'</table>'
   +((M.hq||[]).length?'<div class="muted" style="margin-top:8px">도급인 · '+e(M.hq.map(x=>x.n).join(' · '))+'</div>':'')
   +'<p class="muted" style="margin:6px 0 0">출석 = 업체에서 1명 이상 · 반기 평가 협의체 참석률에 들어갑니다.</p></div>';
+ h+=sec('④','붙임 · 순회점검 상세 · '+coRng(b))+coHtml(b,who,'','',true);  // S8-28 예전 ② 안건 → 뒤로
  return h}
 /* ---------- 본사 ☰ 협의체 ----------
  *  S8-24 맨 위 = 회의 카드 (열린 회의가 있으면 그 회의 · 없으면 [협의체 회의 열기] → 날짜를 고르면 그 날짜의 달)
@@ -61,14 +86,14 @@ function coTopPick(){const M=coL.meets||{};if(coTopP)return coTopP;const open=Ob
 function coRefreshTop(id){coTopP=id||'';if(tab==='jobs'&&smenu==='co'&&!coSel)renderJobs()}
 function sCo(){if(!coL){const c=typeof cacheGet==='function'?cacheGet('coList',[]):null;if(c&&Array.isArray(c.list)&&!c.err){coL=c;coL._c=1;coTopSet(c.top);setTimeout(()=>coLoad(true),0)}}  // S8-26 저장해 둔 것 먼저
  if(!coL){coLoad();return '<div class="card"><h2>협의체</h2><p class="muted">불러오는 중입니다…</p></div>'}if(coL.err){const m=coL.err;coL=null;return '<div class="card"><h2>협의체</h2><p class="muted">'+escapeText(m)+'</p><button class="button" type="button" onclick="renderJobs()">다시 시도</button></div>'}const e=escapeText;
- if(coSel&&coCur&&coCur.id===coSel){const md=(coL.meets||{})[coSel],ed=isSafetyUI()||(!!state.staff&&state.staff.role==='CLIENT'&&!isCsUI()),mk=md&&md.status==='DONE'&&ed?'<button class="button" type="button" style="width:100%;margin-top:10px" onclick="coMeetMake(\''+e(coSel)+'\')">회의 결과 만들기 (개최 공문 · 안건 · 참석 현황)</button>':'';
+ if(coSel&&coCur&&coCur.id===coSel){const md=(coL.meets||{})[coSel],ed=isSafetyUI()||(!!state.staff&&state.staff.role==='CLIENT'&&!isCsUI()),mk=md&&md.status==='DONE'&&ed?'<button class="button" type="button" style="width:100%;margin-top:10px" onclick="coMeetMake(\''+e(coSel)+'\')">회의 결과 만들기 (개최 공문 · 회의록 · 참석 현황)</button>':'';
   if(coCur.meet)return coMeetHtml(coCur,'S','coBack()');
   /* S8-24 결과가 없는 끝난 회의 (예전 방식으로 끝남 · 결과 만들기 실패) */
   if(coCur.noResult)return '<div class="card"><button class="button ghost" type="button" onclick="coBack()">← 협의체</button><h2 style="margin:12px 0 0">'+e(coMon(coSel))+' 안전보건협의체</h2>'
    +'<div class="muted">회의 '+e(md?jtD(md.date)+(md.hour?' '+Number(md.hour)+'시':''):'')+(md?' · 업체 출석 '+md.nIn+' / '+md.nV:'')+'</div>'
-   +'<p class="muted" style="margin:10px 0 0">이 회의는 아직 결과(개최 공문 · 안건 · 참석 현황)가 없습니다. 예전 방식으로 끝났거나 결과 만들기가 실패한 회의입니다.</p>'+(mk||'<p class="muted" style="margin:8px 0 0">안전보건팀 · 도급인 담당자가 결과를 만들면 볼 수 있습니다.</p>')+'</div>';
+   +'<p class="muted" style="margin:10px 0 0">이 회의는 아직 결과(개최 공문 · 회의록 · 참석 현황)가 없습니다. 예전 방식으로 끝났거나 결과 만들기가 실패한 회의입니다.</p>'+(mk||'<p class="muted" style="margin:8px 0 0">안전보건팀 · 도급인 담당자가 결과를 만들면 볼 수 있습니다.</p>')+'</div>';
   /* 예전 25일 결과 파일 = 같은 ① ② ③ 모양 · 그 달에 끝난 회의가 있으면 회의 결과로 바꿀 수 있음 */
-  return coMeetHtml(coCur,'S','coBack()',mk?'<p class="muted" style="margin:10px 0 0">이 달에 끝난 협의체 회의가 있습니다. 회의 결과로 다시 만들면 개최 공문 · 참석 현황까지 들어갑니다.</p>'+mk:'')}
+  return coMeetHtml(coCur,'S','coBack()',mk?'<p class="muted" style="margin:10px 0 0">이 달에 끝난 협의체 회의가 있습니다. 회의 결과로 다시 만들면 개최 공문 · 회의록 · 참석 현황까지 들어갑니다.</p>'+mk:'')}
  const P=coTopPick(),M=coL.meets||{},F={};(coL.list||[]).forEach(c=>{F[c.id]=c});
  const ids=[...new Set(Object.keys(M).filter(k=>M[k].status==='DONE').concat(Object.keys(F)))].sort().reverse();
  const row=id=>{const m=M[id],c=F[id],res=!!(c&&(c.meet||c.kind==='MEET'));  // res = 회의 결과 (예전 25일 파일도 PDF는 받을 수 있음)
@@ -76,17 +101,17 @@ function sCo(){if(!coL){const c=typeof cacheGet==='function'?cacheGet('coList',[
   const go=c?"coOpen('"+e(id)+"')":"coOpenNoResult('"+e(id)+"')";
   return '<div class="row" style="gap:6px;align-items:center"><button class="shli" type="button" style="flex:1" onclick="'+go+'">'+shIc(m?'check':'doc')+'<span class="t"><b>'+e(coMon(id))+'</b><span class="muted">'+e(sub)+'</span></span>'+(m?'<span class="shpill ok">출석 '+m.nIn+' / '+m.nV+'</span>':'')+'<span aria-hidden="true">›</span></button>'
    +(c?'<button type="button" class="linkbtn" onclick="cmPdfGet(\''+e(id)+'\')">PDF ↓</button>':'')+'</div>'};
- return '<div class="card"><h2 style="margin:0">협의체</h2><div class="muted">매월 중순 정기 회의 · 회의를 열면 업체에 개최 공문 메일 · 회의 종료 = 결과 PDF (개최 공문 + 안건 + 참석 현황)</div>'
+ return '<div class="card"><h2 style="margin:0">협의체</h2><div class="muted">매월 중순 정기 회의 · 회의를 열면 업체에 개최 공문 메일 · 회의 종료 = 결과 PDF (개최 공문 + 회의록 + 미흡 사진 + 참석 현황)</div>'
   +(coTopP?'<button type="button" class="linkbtn" style="margin-top:6px" onclick="coRefreshTop(\'\')">← 지금 회의로</button>':'')+'</div>'
   +(typeof cmCardHtml==='function'?cmCardHtml(P):'')
   +'<div class="card"><h2 style="margin:0 0 4px">지난 협의체 (결과 · PDF)</h2>'+(ids.length?ids.map(row).join(''):'<p class="muted" style="margin:8px 0 0">아직 끝난 회의가 없습니다.</p>')
-  +'<p class="muted" style="margin:8px 0 0">누르면 결과(개최 공문 · 안건 · 참석 현황)를 봅니다. 예전 25일 결과 파일도 그대로 볼 수 있습니다.</p></div>'}
+  +'<p class="muted" style="margin:8px 0 0">누르면 결과(개최 공문 · 회의록 · 참석 현황)를 봅니다. 예전 25일 결과 파일도 그대로 볼 수 있습니다.</p></div>'}
 async function coOpen(id){try{coCur=await call('coGet',id);coSel=id;jobsMode='form';renderJobs();window.scrollTo(0,0)}catch(e){}}
 function coBack(){coSel='';coCur=null;renderJobs()}
 /** S8-24 결과가 없는 끝난 회의 → 안내 + [회의 결과 만들기] 화면 */
 function coOpenNoResult(id){coCur={id,noResult:true};coSel=id;jobsMode='form';renderJobs();window.scrollTo(0,0)}
 /** S8-24 끝난 회의로 결과 만들기 (안건 = 지난 회의 다음 날 ~ 이 회의 전날 · 예전 25일 파일이 있으면 바뀜) → 결과 화면 */
-async function coMeetMake(id){if(!await askOk('회의 결과 만들기',coMon(id)+' 협의체 회의 결과(개최 공문 · 안건 · 참석 현황)를 지금 기록으로 만듭니다.'+((coL.list||[]).some(c=>c.id===id)?'\n이 달의 예전 25일 결과 파일은 회의 결과로 바뀝니다.':''),'만들기'))return;
+async function coMeetMake(id){if(!await askOk('회의 결과 만들기',coMon(id)+' 협의체 회의 결과(개최 공문 · 회의록 · 참석 현황)를 지금 기록으로 만듭니다.'+((coL.list||[]).some(c=>c.id===id)?'\n이 달의 예전 25일 결과 파일은 회의 결과로 바뀝니다.':''),'만들기'))return;
  try{await call('cmResult',id);coL=null;await coLoad();await coOpen(id);msg('결과를 만들었습니다.')}catch(e){}}
 async function coMakeNow(id){if(!await askOk('협의체 만들기',coMon(id)+' 협의체를 지금 기록으로 집계할까요?\n(이미 있으면 다시 만듭니다)','만들기'))return;try{coCur=await call('coMake',id);coSel=id;coL=null;await coLoad();msg('만들었습니다.')}catch(e){}}
 async function coMailNow(id){if(!await askOk('공문 메일',coMon(id)+' 협의체 결과를 입고도우미 업체 계약담당자에게 메일로 보낼까요?','보내기'))return;try{coCur=await call('coMail',id);coSel=id;coL=null;await coLoad();msg('보냈습니다 · '+coCur.mailCount+'통')}catch(e){}}
