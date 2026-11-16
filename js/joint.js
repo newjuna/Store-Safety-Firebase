@@ -80,7 +80,7 @@ function jtMineHtml(M,full){const t=(jtB&&jtB.today)||kstToday(),e=escapeText,up
   +'<div class="card"><h2 style="margin:0 0 4px">내 합동점검</h2>'+(up.length?up.map(row).join(''):'<p class="muted" style="margin:8px 0 0">예정된 합동점검이 없습니다.</p>')
   +(full&&done.length?'<details class="hist"><summary>완료 '+done.length+'</summary>'+done.slice(0,40).map(row).join('')+'</details>':'')+'</div>'}
 /** S8-9 CS 담당자 = 조직도 「CS팀」 구성원 중 로그인 Gmail 있는 사람 (여기서는 명단만 · 추가 · 고치기는 조직도) · 담당자 밑에 이번 분기 맡은 합동점검 */
-function jtCsHtml(){const B=jtB,e=escapeText,ed=B.canCs!==undefined?B.canCs:B.canEdit,t=B.today,L=B.list||[];  // S8-27 안전보건팀 · 도급인 담당자가 CS 담당자 추가 · 중지
+function jtCsHtml(){const B=jtB,e=escapeText,ed=B.canCs!==undefined?B.canCs:B.canEdit,t=B.today,L=B.list||[];  // S8-29 CS 담당자 추가 · 중지 = 안전보건팀 · 마스터만
  const kids=c=>L.filter(x=>String(x.csEmail).toLowerCase()===String(c.email).toLowerCase());
  return '<div class="card"><div class="vh-top" style="align-items:center"><h2 style="margin:0">CS 담당자</h2><span class="muted">'+(ed?'아래에서 추가 · 조직도에서도 관리':'조직도 「CS 담당」에서 관리')+'</span></div>'
   +B.csList.map(c=>{const K=kids(c),off=c.status==='STOP';
