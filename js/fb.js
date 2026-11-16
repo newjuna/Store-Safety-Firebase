@@ -6,7 +6,7 @@
  * - 아직 옮기지 않은 기능은 '아직 Firebase로 옮기지 않은 기능' 안내
  */
 (function () {
-  const VERSION = '26.11.16 S8-27';
+  const VERSION = '26.11.16 S8-28';
   /* ---------- 기존 Code.gs와 같은 기준값 ---------- */
   /* F2.1 업종 '오픈지원' 추가 (매장 오픈 인력 · 인력사무소형) · 인테리어(마감) = 지금까지의 공사 흐름 그대로 */
   const CFG = {
@@ -1007,6 +1007,9 @@
   API.cmHqIn = async (a, id, name) => { await staffOnly(a); return relay('cmHqIn', { id: tidy(id, 7), name: tidy(name, 30) }); };
   API.cmDone = async (a, id) => relay('cmDone', { id: tidy(id, 7) }, false, 240000);
   API.cmResult = async (a, id) => relay('cmResult', { id: tidy(id, 7) }, false, 240000);
+  /* S8-28 협의 사항 (회의록 · 시행규칙 제79조 ②) 저장 · 4 · 6 미리 보기 */
+  API.cmNote = async (a, id, g) => { const o = {}; ['a1', 'a2', 'a3', 'a5', 'etc'].forEach((k) => { o[k] = tidy(g && g[k], 1500); }); return relay('cmNote', { id: tidy(id, 7), agenda: o }); };
+  API.cmAgenda = async (a, id) => { await staffOnly(a); return relay('cmAgenda', { id: tidy(id, 7) }, true, 180000); };
   API.cmPdf = async (a, id) => { await staffOnly(a); return relay('cmPdf', { id: tidy(id, 7) }, true, 180000); };
   API.cmVList = async () => relay('cmVList', {}, true);
   API.cmVIn = async (a, id, name) => relay('cmVIn', { id: tidy(id, 7), name: tidy(name, 30) });  // 업체 화면 [출석]
