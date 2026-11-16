@@ -31,6 +31,13 @@ function barStart(){barN++;$('topLoad')?.classList.add('on');clearTimeout(barT);
 function barEnd(){barN=Math.max(0,barN-1);if(!barN){clearTimeout(barT);$('topLoad')?.classList.remove('on');$('topNote')?.classList.remove('on')}}
 /* 한 번 본 화면은 이 기기에 저장해 두고 다음에 바로 보여 줌 (뒤에서 최신으로 바꿈). 로그아웃하면 지움 */
 const CACHE_FN=new Set(['adminTree','portalData','myJobs','jobBoard','vendorJob','noticeList','vendorList','getPermit']);
+/* S8-26 Apps Script로 받는 화면도 이 기기에 저장 → 다음에 열면 저장해 둔 것을 먼저 보여 주고 뒤에서 최신으로 바꿈
+ *  (도급인: 오늘 할 일 · 협의체 · 회의 카드 · 합동점검 · 시정요구서 · 반기 평가 · 점장 안내문 / 업체 대시보드 카드)
+ *  저장 · 발행 · 지우기 같은 바꾸는 요청이 끝나면 이 목록 저장본은 지움 (예전 내용이 잠깐 보이지 않게) */
+const SWR_FN=new Set(['dashSum','coList','cmGet','jtBoard','vcAll','heBoard','shopKeyGet','cmVList','jtVList','vcList','wrMine','acMine','heMine']);
+SWR_FN.forEach(n=>CACHE_FN.add(n));
+const SWR_KEEP=new Set(['principalGet','getTemplate','file','getInternalFile','getMyFile','cmPdf','cmVPdf','viewCert','regDocs','getRegistrationDocs','evalResult','myBadges','halfZip','jobPaper']);  // 내려받기 · 보기만 하는 요청
+function swrDrop(name){if(READS.has(name)||SWR_FN.has(name)||SWR_KEEP.has(name))return;try{const ks=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i)||'',p=k.split(':');if(p[0]==='fc'&&SWR_FN.has(p[2]))ks.push(k)}ks.forEach(k=>localStorage.removeItem(k))}catch(e){}}
 let CUSER='';try{CUSER=localStorage.getItem('fcUser')||''}catch(e){}
 const ck_=(n,a)=>'fc:'+CUSER+':'+n+':'+JSON.stringify(a||[]);
 function cacheGet(n,a){if(!CUSER||!CACHE_FN.has(n))return null;try{const v=localStorage.getItem(ck_(n,a));return v?JSON.parse(v):null}catch(e){return null}}
@@ -52,10 +59,14 @@ function call(name,...args){
  const read=READS.has(name);
  if(read)barStart();else loadStart(name);
  const finish=()=>{if(read)barEnd();else loadEnd()};
- return api(name,args).then(r=>{finish();cacheSet(name,args,r);return r},e=>{finish();msg(e.message||'처리에 실패했습니다.');throw e});
+ return api(name,args).then(r=>{finish();swrDrop(name);cacheSet(name,args,r);return r},e=>{finish();msg(e.message||'처리에 실패했습니다.');throw e});
 }
 /** 화면을 가리지 않는 조용한 호출 (자동저장용) */
-function callQuiet(name,...args){return api(name,args).then(r=>{cacheSet(name,args,r);return r})}
+function callQuiet(name,...args){return api(name,args).then(r=>{swrDrop(name);cacheSet(name,args,r);return r})}
+/** S8-26 저장해 둔 화면을 먼저 보여 준 뒤 뒤에서 받을 때 · 위쪽 얇은 선만 · 실패해도 알림 없음 (저장본을 그대로 둠) */
+function callBg(name,...args){barStart();return callQuiet(name,...args).finally(barEnd)}
+/** S8-26 저장본과 새로 받은 것이 같은지 (같으면 화면을 다시 그리지 않음 · 쓰던 글이 안 지워짐) */
+function swrSame(a,b){try{const x={...a},y={...b};['_c','_at','autoDone'].forEach(k=>{delete x[k];delete y[k]});return JSON.stringify(x)===JSON.stringify(y)}catch(e){return false}}
 function input(id,label,value='',type='text',disabled=false,ph=''){return `<div class="field"><label for="f_${id}">${escapeText(label)}</label><input id="f_${id}" type="${type}" value="${escapeText(value)}" ${ph?`placeholder="${escapeText(ph)}"`:''} ${disabled?'disabled':''}></div>`}
 function text(id,label,value='',disabled=false){return `<div class="field"><label for="f_${id}">${escapeText(label)}</label><textarea id="f_${id}" ${disabled?'disabled':''}>${escapeText(value)}</textarea></div>`}
 function value(id){return $('f_'+id)?.value?.trim()||''}
@@ -63,7 +74,7 @@ function switchTab(which){tab=which;toggleMenu(false);stopScan();if($(which+'Tab
 /* F1.9t 홈 화면 앱(PWA): 서비스 워커 등록 (저장 안 함 · 홈 화면에 추가할 수 있게만) */
 if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 // ★ 화면 버전: 여기 한 줄만 고침 (GitHub만 올리면 로그인 화면·앱 화면·메뉴에 모두 반영, Code.gs 수정 불필요)
-const UI_VERSION='26.11.16 S8-25';
+const UI_VERSION='26.11.16 S8-26';
 /* F1.8o 전화번호 · 사업자번호: 숫자만 쳐도 '-' 자동 (서버는 원래 숫자만 골라 씀) */
 function fmtTel(v){const d=String(v||'').replace(/\D/g,'').slice(0,11);if(d.startsWith('02'))return d.length<3?d:d.length<6?d.slice(0,2)+'-'+d.slice(2):d.length<10?d.slice(0,2)+'-'+d.slice(2,5)+'-'+d.slice(5):d.slice(0,2)+'-'+d.slice(2,6)+'-'+d.slice(6,10);
  return d.length<4?d:d.length<8?d.slice(0,3)+'-'+d.slice(3):d.length<11?d.slice(0,3)+'-'+d.slice(3,6)+'-'+d.slice(6):d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7)}
